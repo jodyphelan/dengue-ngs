@@ -1,7 +1,7 @@
 import setuptools
 from glob import glob
 
-version = [l.strip() for l in open("dengue_wgs/__init__.py") if "version" in l][0].split('"')[1]
+version = [l.strip() for l in open("dengue_ngs/__init__.py") if "version" in l][0].split('"')[1]
 
 setuptools.setup(
 	name="dengue_wgs",
