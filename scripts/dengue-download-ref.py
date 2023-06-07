@@ -3,7 +3,7 @@ import os
 import subprocess as sp
 from tqdm import tqdm
 import sys
-from dengue_wgs import run_cmd
+from dengue_ngs import run_cmd
 
 
 def stream_fasta(f):

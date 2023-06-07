@@ -4,7 +4,7 @@ import subprocess as sp
 import sys
 import csv
 import os
-import dengue_wgs as dwgs
+import dengue_ngs as dwgs
 
 
 

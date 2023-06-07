@@ -5,7 +5,7 @@ import sys
 from uuid import uuid4
 import csv
 import os
-from dengue_wgs import run_cmd
+from dengue_ngs import run_cmd
 
 def run_cmd(cmd):
     sys.stderr.write(f"Running: {cmd}\n")
