@@ -1,0 +1,7 @@
+build/
+dist/
+*.egg-info/
+tbprofiler/__pycache__
+.vscode
+tests/scratch
+tests/__pycache__
