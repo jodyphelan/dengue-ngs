@@ -31,7 +31,10 @@ def main(args):
                 "median_dp":bam.get_median_coverage(f"{run.prefix}.fasta")
             })
         except:
-            pass
+            results.append({
+                "Sample ID":run.prefix,
+                "median_dp":"NA"
+            })
     with open("run_results.csv","w") as O:
         writer = csv.DictWriter(O,fieldnames=list(results[0]))
         writer.writeheader()

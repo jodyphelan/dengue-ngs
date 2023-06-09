@@ -21,14 +21,14 @@ def main(args):
 
     if not os.path.isfile(f"{args.refdir}/{args.ref}.bwt"):
         run_cmd("bwa index %(refdir)s/%(ref)s" % vars(args))
-    run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(refdir)s/%(ref)s %(read1)s %(read2)s | samtools sort -o %(prefix)s.bam" % vars(args))
+    run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(refdir)s/%(ref)s %(read1)s %(read2)s | samtools sort -@ %(threads)s -o %(prefix)s.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.bam" % vars(args))
     run_cmd("pilon --genome %(refdir)s/%(ref)s --frags %(prefix)s.bam --output %(prefix)s.temp" % vars(args))
     run_cmd("sed 's/>/>%(prefix)s /' %(prefix)s.temp.fasta > %(prefix)s.fasta" % vars(args))
     os.remove(f"{args.prefix}.temp.fasta")
     
     run_cmd("bwa index %(prefix)s.fasta" % vars(args))
-    run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.fasta %(read1)s %(read2)s | samtools sort -o %(prefix)s.consensus.bam" % vars(args))
+    run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.fasta %(read1)s %(read2)s | samtools sort -@ %(threads)s -o %(prefix)s.consensus.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.consensus.bam" % vars(args))
     run_cmd("lofreq call -f %(prefix)s.fasta -o %(prefix)s.lofreq.vcf %(prefix)s.consensus.bam" % vars(args))
 
