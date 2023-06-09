@@ -21,7 +21,7 @@ def main(args):
 
     if not os.path.isfile(f"{args.refdir}/{args.ref}.bwt"):
         run_cmd("bwa index %(refdir)s/%(ref)s" % vars(args))
-    run_cmd("bwa mem -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(refdir)s/%(ref)s %(read1)s %(read2)s | samtools sort -o %(prefix)s.bam" % vars(args))
+    run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(refdir)s/%(ref)s %(read1)s %(read2)s | samtools sort -o %(prefix)s.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.bam" % vars(args))
     run_cmd("pilon --genome %(refdir)s/%(ref)s --frags %(prefix)s.bam --output %(prefix)s.temp" % vars(args))
     run_cmd("sed 's/>/>%(prefix)s /' %(prefix)s.temp.fasta > %(prefix)s.fasta" % vars(args))
@@ -38,6 +38,7 @@ parser.add_argument('-r','--refdir',type=str,help='File with samples',required =
 parser.add_argument('-1','--read1',type=str,help='File with samples',required = True)
 parser.add_argument('-2','--read2',type=str,help='File with samples',required = True)
 parser.add_argument('-p','--prefix',type=str,help='File with samples',required = True)
+parser.add_argument('-t','--threads',type=int,help='File with samples',default=4)
 parser.set_defaults(func=main)
 
 args = parser.parse_args()

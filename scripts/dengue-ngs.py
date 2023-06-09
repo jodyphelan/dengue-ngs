@@ -19,16 +19,19 @@ def main(args):
     runs = dngs.find_fastq_files(args.folder)
     results = []
     for run in runs:
-        dngs.run_cmd(f"dengue-pipeline.py --db {ref_sourfile} --refdir {ref_dir} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix}")
-        bam = pp.bam(
-            bam_file=run.prefix+".consensus.bam",
-            prefix=run.prefix,
-            platform="Illumina"
-        )
-        results.append({
-            "Sample ID":run.prefix,
-            "median_dp":bam.get_median_coverage(f"{run.prefix}.fasta")
-        })
+        try:
+            dngs.run_cmd(f"dengue-pipeline.py --threads {args.threads} --db {ref_sourfile} --refdir {ref_dir} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix}")
+            bam = pp.bam(
+                bam_file=run.prefix+".consensus.bam",
+                prefix=run.prefix,
+                platform="Illumina"
+            )
+            results.append({
+                "Sample ID":run.prefix,
+                "median_dp":bam.get_median_coverage(f"{run.prefix}.fasta")
+            })
+        except:
+            pass
     with open("run_results.csv","w") as O:
         writer = csv.DictWriter(O,fieldnames=list(results[0]))
         writer.writeheader()
@@ -36,6 +39,7 @@ def main(args):
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
+parser.add_argument('-t','--threads',type=int,help='File with samples',default=4)
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
