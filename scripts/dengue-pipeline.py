@@ -28,7 +28,7 @@ def main(args):
     os.remove(f"{args.prefix}.temp.fasta")
     
     run_cmd("bwa index %(prefix)s.fasta" % vars(args))
-    run_cmd("bwa mem -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.fasta %(read1)s %(read2)s | samtools sort -o %(prefix)s.consensus.bam" % vars(args))
+    run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.fasta %(read1)s %(read2)s | samtools sort -o %(prefix)s.consensus.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.consensus.bam" % vars(args))
     run_cmd("lofreq call -f %(prefix)s.fasta -o %(prefix)s.lofreq.vcf %(prefix)s.consensus.bam" % vars(args))
 

@@ -2,7 +2,7 @@ import os
 import re
 import subprocess as sp
 import sys
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 def run_cmd(cmd):
     sys.stderr.write(f"Running: {cmd}\n")
