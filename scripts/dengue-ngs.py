@@ -9,8 +9,8 @@ import json
 
 
 def main(args):
-    
-    print(ref_sourfile)
+    ref_dir = os.path.expanduser('~')+"/.dengue-ngs/ref/"
+    ref_sourfile = os.path.expanduser('~')+"/.dengue-ngs/dengue.sig"
     if not os.path.exists(ref_dir) or not os.path.exists(ref_sourfile):
         sys.stderr.write("Reference files not found. Please run dengue-download-ref.py first.\n")
         sys.exit(1)
