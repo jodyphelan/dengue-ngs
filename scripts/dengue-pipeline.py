@@ -32,7 +32,7 @@ def main(args):
         if not os.path.isfile(f"{args.prefix}.k.profile"):
             quit()
         rows = [row for row in csv.DictReader(open(f"{args.prefix}.k.profile"),delimiter="\t")]
-        args.ref = rows[0]["ref"]
+        args.ref = rows[0]["ref"]+".fasta"
 
     if not os.path.isfile(f"{args.refdir}/{args.ref}.bwt"):
         run_cmd("bwa index %(refdir)s/%(ref)s" % vars(args))
