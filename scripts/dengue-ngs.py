@@ -28,7 +28,7 @@ def main(args):
         if os.path.isfile(f"{run.prefix}.json"):
             results.append(json.load(open(f"{run.prefix}.json")))
         else:
-            results.append = {"Sample ID":run.prefix,"Median depth":"NA","Reference_coverage":"NA"}
+            results.append({"Sample ID":run.prefix,"Median depth":"NA","Reference_coverage":"NA"})
     
     with open("run_results.csv","w") as O:
         writer = csv.DictWriter(O,fieldnames=list(results[0]))
