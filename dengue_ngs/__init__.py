@@ -5,7 +5,7 @@ import sys
 import pathogenprofiler as pp
 from uuid import uuid4
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 def run_cmd(cmd):
     sys.stderr.write(f"Running: {cmd}\n")
