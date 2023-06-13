@@ -68,8 +68,8 @@ with open("taxid.map",'w') as O:
     for name in id2tax:
         O.write("%s\t%s\n" % (name,id2tax[name]))
 
-# sys.stderr.write("Creating sourmash signature\n")
-# run_cmd("sourmash sketch dna --singleton ncbi_dataset/data/genomic.fna -o dengue.sig")
+sys.stderr.write("Creating sourmash signature\n")
+run_cmd("sourmash sketch dna --singleton ncbi_dataset/data/genomic.fna -o dengue.sig")
 
 sys.stderr.write("Creating kmcp database\n")
 run_cmd("kmcp compute --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
