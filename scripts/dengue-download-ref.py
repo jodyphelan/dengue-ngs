@@ -59,10 +59,10 @@ id2tax = {}
 for name,seq,serotype in tqdm(stream_fasta('ncbi_dataset/data/genomic.fna')):
     if len(seq)<9000:
         continue
-    with open(ref_dir + name + ".fasta",'w') as O:
-        O.write(">%s\n%s\n" % (name,seq))
     if serotype is not None:
         id2tax[name] = taxid[serotype]
+        with open(ref_dir + name + ".fasta",'w') as O:
+            O.write(">%s\n%s\n" % (name,seq))
 
 with open("taxid.map",'w') as O:
     for name in id2tax:

@@ -27,7 +27,7 @@ def main(args):
         args.ref = rows[0]["name"].split(" ")[0]+".fasta"
     else:
         args.db = os.path.expanduser('~')+"/.dengue-ngs/refs.kmcp/"
-        run_cmd("kmcp search -d %(db)s %(read1)s  %(read2)s -o %(prefix)s.kmcp.tsv.gz" % vars(args))
+        run_cmd("kmcp search -j %(threads)s -d %(db)s %(read1)s  %(read2)s -o %(prefix)s.kmcp.tsv.gz" % vars(args))
         run_cmd("kmcp profile -X %(data_dir)s/taxdump/ -T %(db)s/taxid.map -m 1 %(prefix)s.kmcp.tsv.gz -o %(prefix)s.k.profile" % vars(args))
         if not os.path.isfile(f"{args.prefix}.k.profile"):
             quit()
