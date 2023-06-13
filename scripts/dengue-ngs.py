@@ -19,7 +19,7 @@ def main(args):
     run_script = "%s.sh" % uuid4()
     with open(run_script,"w") as O:
         for run in runs:
-            O.write(f"dengue-pipeline.py --threads {args.threads_per_job} --db {ref_sourfile} --refdir {ref_dir} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
+            O.write(f"dengue-pipeline.py --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
     
     dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs} --bar")
     
