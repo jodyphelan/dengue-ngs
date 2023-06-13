@@ -2,7 +2,10 @@ import os
 import re
 import subprocess as sp
 import sys
-__version__ = "0.0.3"
+import pathogenprofiler as pp
+from uuid import uuid4
+
+__version__ = "0.0.4"
 
 def run_cmd(cmd):
     sys.stderr.write(f"Running: {cmd}\n")
@@ -49,3 +52,70 @@ def find_fastq_files(directory):
     fastq_files = sort_out_paried_files(files)
     
     return fastq_files
+
+
+def get_fasta_missing_content(fasta_file):
+    """
+    Get the missing content of a fasta file.
+    """
+    fasta = pp.fasta(fasta_file)
+    seq = list(fasta.fa_dict.values())[0]
+    missing = round(seq.count("N")/len(seq)*100)
+    return missing
+
+def mask_fasta(input,output,positions,newchrom=None):
+    """
+    Mask the fasta file with Ns.
+    """
+    fasta = pp.fasta(input)
+    seq = list(list(fasta.fa_dict.values())[0])
+
+    for chrom,pos in positions:
+        seq[pos-1] = "N"
+    
+    with open(output,"w") as O:
+        O.write(">%s\n%s\n" % (newchrom,''.join(seq)))
+
+def get_missing_positions(bam,depth_cutoff=50):
+    tmpfile = "%s.bed" % uuid4()
+    run_cmd(f"bedtools genomecov -ibam {bam} -d > {tmpfile}")
+    positions = []
+    for line in open(tmpfile):
+        chrom,pos,depth = line.strip().split("\t")
+        if int(depth) < depth_cutoff:
+            positions.append((chrom,int(pos)))
+    os.remove(tmpfile)
+    return positions
+
+def fasta_depth_mask(input,output,bam_file,depth_cutoff=50,newchrom=None):
+    """
+    Mask the fasta file with Ns based on the depth of the bam file.
+    """
+    positions = get_missing_positions(bam_file,depth_cutoff=depth_cutoff)
+    mask_fasta(input,output,positions,newchrom=newchrom)
+
+
+def return_seqs_by_size(fasta_file,seq_size_cutoff=1000):
+    """
+    Return a list of sequences from a fasta file that are 
+    above a certain size cutoff.
+    """
+    fasta = pp.fasta(fasta_file)
+    seqs = {}
+    for name,seq in fasta.fa_dict:
+        if len(seq) > seq_size_cutoff:
+            seqs[name] = seq
+    return seqs
+
+def filter_seqs_by_size(fasta_file,output, seq_size_cutoff=1000):
+    """
+    Filter a fasta file by a size cutoff.
+    """
+    seqs = return_seqs_by_size(fasta_file,seq_size_cutoff=seq_size_cutoff)
+    if len(seqs) == 1:    
+        with open(output,"w") as O:
+            for name,seq in seqs.items():
+                O.write(">%s\n%s\n" % (name,seq))
+        return True
+    else:
+        return False
