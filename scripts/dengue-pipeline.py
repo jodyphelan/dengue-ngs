@@ -5,7 +5,7 @@ import sys
 from uuid import uuid4
 import csv
 import os
-from dengue_ngs import Report, run_cmd, fasta_depth_mask, get_fasta_missing_content, kreport_extract_human, kreport_extract_Dengue
+from dengue_ngs import *
 import pathogenprofiler as pp
 import json
 
@@ -17,11 +17,19 @@ def main(args):
     report = Report(args.prefix+".json")
     report.set("Sample ID",args.prefix)
 
+    report.set_dict(get_fastq_stats([args.read1,args.read2]))
+
     run_cmd("kraken2 --db /run/user/506/standard/ --memory-mapping --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads 20 %(read1)s %(read2)s" % vars(args))
 
-    report.set("Read percent human", kreport_extract_human(f"{args.prefix}.kreport.txt"))
-    report.set("Read percent dengue", kreport_extract_Dengue(f"{args.prefix}.kreport.txt"))
-    
+    report.set_dict(kreport_extract_human(f"{args.prefix}.kreport.txt"))
+    report.set_dict(kreport_extract_dengue(f"{args.prefix}.kreport.txt"))
+
+    run_cmd("extract_kraken_reads.py --include-children --fastq-output -t 12637  -k %(prefix)s.koutput.txt -r %(prefix)s.kreport.txt -s %(read1)s -s2 %(read2)s -o %(prefix)s.kraken_filtered.1.fq -o2 %(prefix)s.kraken_filtered.2.fq 2> /dev/null" % vars(args))
+    run_cmd("pigz --force -p %(threads)s %(prefix)s.kraken_filtered.1.fq %(prefix)s.kraken_filtered.2.fq" % vars(args))
+
+    args.read1 = f"{args.prefix}.kraken_filtered.1.fq.gz"
+    args.read2 = f"{args.prefix}.kraken_filtered.2.fq.gz"
+
     if args.reference_assignment_method=="sourmash":
         args.db = "%(data_dir)s/dengue.sig" % vars(args)
         run_cmd("sourmash sketch dna %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
@@ -29,6 +37,8 @@ def main(args):
         if not os.path.isfile(f"{args.prefix}.gather.csv"):
             quit()
         rows = [row for row in csv.DictReader(open(f"{args.prefix}.gather.csv"))]
+        if len(rows)==0:
+            quit("Can't find reference\n")
         args.ref = rows[0]["name"].split(" ")[0]+".fasta"
     else:
         args.db = os.path.expanduser('~')+"/.dengue-ngs/refs.kmcp/"
@@ -37,6 +47,8 @@ def main(args):
         if not os.path.isfile(f"{args.prefix}.k.profile"):
             quit()
         rows = [row for row in csv.DictReader(open(f"{args.prefix}.k.profile"),delimiter="\t")]
+        if len(rows)==0:
+            quit("Can't find reference\n")
         args.ref = rows[0]["ref"]+".fasta"
 
     if not os.path.isfile(f"{args.refdir}/{args.ref}.bwt"):

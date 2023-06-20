@@ -21,10 +21,17 @@ def main(args):
         for run in runs:
             O.write(f"dengue-pipeline.py --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
     
-    dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs} --bar")
+    if not args.collate:
+        dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs} --bar")
     
     results = []
-    fieldnames = ["Sample ID","Read percent human","Read percent dengue","Median depth","Reference_coverage"]
+
+    fieldnames = [
+        "Sample ID","Number of reads","Average read length","Read percent human",
+        "Read percent dengue","Read percent dengue 1","Read percent dengue 2",
+        "Read percent dengue 3", "Read percent dengue 4","Median depth","Reference_coverage"
+    ]
+
     for run in runs:
         res = {}
         if os.path.isfile(f"{run.prefix}.json"):
@@ -44,6 +51,7 @@ parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
 parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=10)
 parser.add_argument('-j','--jobs',type=int,help='File with samples',default=10)
+parser.add_argument('-c','--collate',action="store_true",help='Only collate existing results')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()

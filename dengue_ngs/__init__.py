@@ -5,6 +5,8 @@ import sys
 import pathogenprofiler as pp
 from uuid import uuid4
 import json
+import csv
+import statistics as stats
 
 __version__ = "0.0.6"
 
@@ -12,10 +14,33 @@ class Report:
     def __init__(self,report_file):
         self.report = {}
         self.report_file = report_file
-    def add(self,key,value):
+    def set(self,key,value):
         self.report[key] = value
+        self.dump()
+    def set_dict(self,d):
+        for key,value in d.items():
+            self.set(key,value)
+        self.dump()
+    def dump(self):
         with open(self.report_file,"w") as O:
             json.dump(self.report,O,indent=4)
+
+
+def get_fastq_stats(fastq_files):
+    tmpfile = "%s.txt" % uuid4()
+    run_cmd(f"seqkit stats -T {' '.join(fastq_files)} > {tmpfile}")
+    numreads = 0
+    lengths = []
+    for row in csv.DictReader(open(tmpfile),delimiter="\t"):
+        numreads  += int(row['num_seqs'])
+        lengths.append(float(row['avg_len']))
+    
+    os.remove(tmpfile)
+
+    return {
+        "Number of reads":numreads,
+        "Average read length": stats.mean(lengths),
+    }
 
 def kreport_extract_human(kreport_file):
     """
@@ -24,18 +49,36 @@ def kreport_extract_human(kreport_file):
     human_reads = 0
     for line in open(kreport_file):
         if line.strip().split("\t")[4] == "9606":
-            human_reads = int(line.strip().split("\t")[0])
-    return human_reads
+            human_reads = float(line.strip().split("\t")[0])
+    return {"Read percent human":human_reads}
 
-def kreport_extract_Dengue(kreport_file):
+def kreport_extract_dengue(kreport_file):
     """
     Extract the Dengue reads from a kraken report file.
     """
     dengue_reads = 0
+    d1_reads = 0
+    d2_reads = 0
+    d3_reads = 0
+    d4_reads = 0
     for line in open(kreport_file):
-        if line.strip().split("\t")[4] == "3268":
-            dengue_reads = int(line.strip().split("\t")[0])
-    return dengue_reads
+        if line.strip().split("\t")[4] == "12637":
+            dengue_reads = float(line.strip().split("\t")[0])
+        if line.strip().split("\t")[4] == "11053":
+            d1_reads = float(line.strip().split("\t")[0])
+        if line.strip().split("\t")[4] == "11060":
+            d2_reads = float(line.strip().split("\t")[0])
+        if line.strip().split("\t")[4] == "11069":
+            d3_reads = float(line.strip().split("\t")[0])
+        if line.strip().split("\t")[4] == "11070":
+            d4_reads = float(line.strip().split("\t")[0])
+    return {
+        "Read percent dengue":dengue_reads, 
+        "Read percent dengue 1":d1_reads, 
+        "Read percent dengue 2":d2_reads, 
+        "Read percent dengue 3":d3_reads, 
+        "Read percent dengue 4":d4_reads
+    }
 
 def run_cmd(cmd):
     sys.stderr.write(f"Running: {cmd}\n")

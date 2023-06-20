@@ -3,7 +3,7 @@
 ## Install 
 
 ```
-mamba create -n dengue samtools pilon bwa lofreq ncbi-datasets-cli sourmash tqdm bedtools bcftools parallel blast megahit kmcp
+mamba create -n dengue samtools pilon bwa lofreq ncbi-datasets-cli sourmash tqdm bedtools bcftools parallel blast megahit kmcp kraken2 seqkit
 mamba activate dengue
 pip3 install --force-reinstall  git+https://github.com/jodyphelan/dengue-ngs.git
 ```
