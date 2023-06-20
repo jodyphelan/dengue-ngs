@@ -17,6 +17,9 @@ def main(args):
     tmp = str(uuid4())
     args.data_dir = os.path.expanduser('~')+"/.dengue-ngs/"
     args.refdir = "%(data_dir)s/ref/" % vars(args)
+
+    run_cmd("kraken2 --db /run/user/506/standard/ --memory-mapping --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads 20 %(read1)s %(read2)s" % vars(args))
+
     if args.reference_assignment_method=="sourmash":
         args.db = "%(data_dir)s/dengue.sig" % vars(args)
         run_cmd("sourmash sketch dna %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
