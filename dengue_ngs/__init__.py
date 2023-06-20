@@ -4,8 +4,38 @@ import subprocess as sp
 import sys
 import pathogenprofiler as pp
 from uuid import uuid4
+import json
 
-__version__ = "0.0.5"
+__version__ = "0.0.6"
+
+class Report:
+    def __init__(self,report_file):
+        self.report = {}
+        self.report_file = report_file
+    def add(self,key,value):
+        self.report[key] = value
+        with open(self.report_file,"w") as O:
+            json.dump(self.report,O,indent=4)
+
+def kreport_extract_human(kreport_file):
+    """
+    Extract the human reads from a kraken report file.
+    """
+    human_reads = 0
+    for line in open(kreport_file):
+        if line.strip().split("\t")[4] == "9606":
+            human_reads = int(line.strip().split("\t")[0])
+    return human_reads
+
+def kreport_extract_Dengue(kreport_file):
+    """
+    Extract the Dengue reads from a kraken report file.
+    """
+    dengue_reads = 0
+    for line in open(kreport_file):
+        if line.strip().split("\t")[4] == "3268":
+            dengue_reads = int(line.strip().split("\t")[0])
+    return dengue_reads
 
 def run_cmd(cmd):
     sys.stderr.write(f"Running: {cmd}\n")

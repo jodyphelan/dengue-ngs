@@ -5,21 +5,23 @@ import sys
 from uuid import uuid4
 import csv
 import os
-from dengue_ngs import run_cmd, fasta_depth_mask, get_fasta_missing_content, filter_seqs_by_size
+from dengue_ngs import Report, run_cmd, fasta_depth_mask, get_fasta_missing_content, kreport_extract_human, kreport_extract_Dengue
 import pathogenprofiler as pp
 import json
-
-def run_cmd(cmd):
-    sys.stderr.write(f"Running: {cmd}\n")
-    sp.call(cmd,shell=True)
 
 def main(args):
     tmp = str(uuid4())
     args.data_dir = os.path.expanduser('~')+"/.dengue-ngs/"
     args.refdir = "%(data_dir)s/ref/" % vars(args)
 
+    report = Report(args.prefix+".json")
+    report.set("Sample ID",args.prefix)
+
     run_cmd("kraken2 --db /run/user/506/standard/ --memory-mapping --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads 20 %(read1)s %(read2)s" % vars(args))
 
+    report.set("Read percent human", kreport_extract_human(f"{args.prefix}.kreport.txt"))
+    report.set("Read percent dengue", kreport_extract_Dengue(f"{args.prefix}.kreport.txt"))
+    
     if args.reference_assignment_method=="sourmash":
         args.db = "%(data_dir)s/dengue.sig" % vars(args)
         run_cmd("sourmash sketch dna %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
@@ -66,16 +68,11 @@ def main(args):
                 platform="Illumina"
             )
     
-    res = {
-        "Sample ID":args.prefix,
-        "Median depth":bam.get_median_coverage(f"{args.prefix}.fasta"),
-        "Reference_coverage": 100 - get_fasta_missing_content(f"{args.prefix}.consensus.fasta")
-    }
+    report.set("Median depth",bam.get_median_coverage(f"{args.prefix}.fasta"))
+    report.set("Reference_coverage", 100 - get_fasta_missing_content(f"{args.prefix}.consensus.fasta"))   
 
     # run_cmd(f"megahit -1 {args.read1} -2 {args.read2} -o {args.prefix}.megahit -t {args.threads}")
     # consensus_by_assembly = filter_seqs_by_size(f"{args.prefix}.megahit/final.contigs.fa",10000)
-
-    json.dump(res,open(f"{args.prefix}.json","w"))
 
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)

@@ -24,11 +24,16 @@ def main(args):
     dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs} --bar")
     
     results = []
+    fieldnames = ["Sample ID","Read percent human","Read percent dengue","Median depth","Reference_coverage"]
     for run in runs:
+        res = {}
         if os.path.isfile(f"{run.prefix}.json"):
-            results.append(json.load(open(f"{run.prefix}.json")))
+            d = json.load(open(f"{run.prefix}.json"))
+            for f in fieldnames:
+                res[f] = d.get(f,"NA")
         else:
-            results.append({"Sample ID":run.prefix,"Median depth":"NA","Reference_coverage":"NA"})
+            res = {f:"NA" for f in fieldnames}
+        results.append(res)
     
     with open("run_results.csv","w") as O:
         writer = csv.DictWriter(O,fieldnames=list(results[0]))
