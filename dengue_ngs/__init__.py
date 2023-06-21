@@ -7,8 +7,82 @@ from uuid import uuid4
 import json
 import csv
 import statistics as stats
+from collections import defaultdict
+from glob import glob
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-__version__ = "0.0.6"
+
+__version__ = "0.0.7"
+
+
+def plot_lofreq_results(prefix):
+    # Read lofreq results
+    df = pd.read_csv(f"{prefix}.lofreq.tsv",delimiter="\t",header = None)
+    df.rename(columns={0: 'position', 1:'ref',2:'alt',3:'frequency',4:'depth',5:'qual'}, inplace=True)
+    
+    # Read depth
+    dp = pd.read_csv(f"{prefix}.consensus.depth.txt", delimiter="\t",header = None)
+    dp.rename(columns={0: 'chrom', 1:'pos',2:'depth'}, inplace=True)
+
+    # Create figure with secondary y-axis
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+    # Add traces colouring by depth setting the max and min of the colour scale
+    fig.add_trace(
+        go.Scatter(
+            x=df.position, 
+            y=df.frequency, 
+            name="Lofreq SNP",
+            mode='markers', 
+            marker=dict(color=df.qual, colorscale='Viridis',showscale=True,cmin=65,cmax=200),
+        ),
+        secondary_y=False, 
+    )
+
+    # Add depth trace
+    fig.add_trace(
+        go.Scatter(x=dp.pos, y=dp.depth, name="Depth",mode='lines'),
+        secondary_y=True
+    )
+
+    # add legend on top left
+    fig.update_layout(
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        )
+
+    )
+
+    # use simple white template
+    fig.update_layout(template='simple_white')
+
+    # write to pdf
+    fig.write_image(f"{prefix}.lofreq.pdf")
+
+
+def remove_bwa_index(ref):
+    for e in ["amb","ann","bwt","pac","sa"]:
+        os.remove(f"{ref}.{e}")
+
+def pilon_correct(ref,r1,r2,prefix,threads=1):
+    tmp = str(uuid4())
+    run_cmd(f"cp {ref} {tmp}.ref.fasta")
+    run_cmd(f"bwa index {tmp}.ref.fasta")
+    
+    run_cmd(f"bwa mem -t {threads} -R '@RG\\tID:{prefix}\\tSM:{prefix}\\tPL:Illumina' {tmp}.ref.fasta {r1} {r2} | samtools sort -@ {threads} -o {tmp}.bam")
+    run_cmd(f"samtools index {tmp}.bam")
+    run_cmd(f"pilon -Xmx10g --genome {tmp}.ref.fasta --frags {tmp}.bam --output {prefix}")
+    run_cmd(f"sed -i 's/_pilon//' {prefix}.fasta")
+    for f in glob(f"{tmp}.*"):
+        os.remove(f)
+    
+
+
 
 class Report:
     def __init__(self,report_file):
@@ -94,25 +168,28 @@ class Sample:
         return f"Sample(prefix={self.prefix},r1={self.r1},r2={self.r2})"
 
 
-def sort_out_paried_files(files,r1_suffix="_L001_R1_001.fastq.gz",r2_suffix="_L001_R2_001.fastq.gz"):
-    prefixes = set()
+def sort_out_paried_files(files,r1_suffix="_S[0-9]+_L001_R1_001.fastq.gz",r2_suffix="_S[0-9]+_L001_R2_001.fastq.gz"):
+    prefixes = defaultdict(lambda:{"r1":[],"r2":[]})
+
     for f in files:
         tmp1 = re.search("(.+)%s" % r1_suffix,f)
         tmp2 = re.search("(.+)%s" % r2_suffix,f)
+        p = None
         if tmp1:
-            prefixes.add(tmp1.group(1))
-        if tmp2:
-            prefixes.add(tmp2.group(1))
+            p = tmp1.group(1).split("/")[-1]
+            prefixes[p]['r1'].append(f)
+        elif tmp2:
+            p = tmp2.group(1).split("/")[-1]
+            prefixes[p]['r2'].append(f)
+            
     runs = []
-    for p in prefixes:
-        r1 = p + r1_suffix
-        r2 = p + r2_suffix
-        if r1 not in files:
-            raise Exception("%s is present in data file but not %s. Please check." % (r2,r1))
-        if r2 not in files:
-            raise Exception("%s is present in data file but not %s. Please check." % (r1,r2))
+    for p,vals in prefixes.items():
+        if len(vals['r1'])!=1:
+            raise Exception("%s has number of R1 files != 1 %s. Please check." % (p,vals['r1']))
+        if len(vals['r2'])!=1:
+            raise Exception("%s has number of R2 files != 1 %s. Please check." % (p,vals['r2']))
         runs.append(
-            Sample(p.split("/")[-1],r1,r2))
+            Sample(p,vals['r1'][0],vals['r2'][0]))
     return runs
 
 def find_fastq_files(directory):
@@ -168,19 +245,19 @@ def fasta_depth_mask(input,output,bam_file,depth_cutoff=50,newchrom=None):
     mask_fasta(input,output,positions,newchrom=newchrom)
 
 
-def return_seqs_by_size(fasta_file,seq_size_cutoff=1000):
+def return_seqs_by_size(fasta_file,seq_size_cutoff):
     """
     Return a list of sequences from a fasta file that are 
     above a certain size cutoff.
     """
     fasta = pp.fasta(fasta_file)
     seqs = {}
-    for name,seq in fasta.fa_dict:
+    for name,seq in fasta.fa_dict.items():
         if len(seq) > seq_size_cutoff:
             seqs[name] = seq
     return seqs
 
-def filter_seqs_by_size(fasta_file,output, seq_size_cutoff=1000):
+def filter_seqs_by_size(fasta_file,output, seqname, seq_size_cutoff):
     """
     Filter a fasta file by a size cutoff.
     """
@@ -188,7 +265,7 @@ def filter_seqs_by_size(fasta_file,output, seq_size_cutoff=1000):
     if len(seqs) == 1:    
         with open(output,"w") as O:
             for name,seq in seqs.items():
-                O.write(">%s\n%s\n" % (name,seq))
+                O.write(">%s\n%s\n" % (seqname,seq))
         return True
     else:
         return False

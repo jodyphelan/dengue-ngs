@@ -29,7 +29,8 @@ def main(args):
     fieldnames = [
         "Sample ID","Number of reads","Average read length","Read percent human",
         "Read percent dengue","Read percent dengue 1","Read percent dengue 2",
-        "Read percent dengue 3", "Read percent dengue 4","Median depth","Reference_coverage"
+        "Read percent dengue 3", "Read percent dengue 4","Consensus type",
+        "Median depth","Reference_coverage"
     ]
 
     for run in runs:
