@@ -19,7 +19,7 @@ def main(args):
     run_script = "%s.sh" % uuid4()
     with open(run_script,"w") as O:
         for run in runs:
-            O.write(f"dengue-pipeline.py --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
+            O.write(f"dengue-pipeline.py --kraken-db {args.kraken_db} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
     
     if not args.collate:
         dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs} --bar")
@@ -52,6 +52,7 @@ parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
 parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=10)
 parser.add_argument('-j','--jobs',type=int,help='File with samples',default=10)
+parser.add_argument('-k','--kraken-db',type=str,default='/run/user/506/standard/',help='Kraken2 database directory')
 parser.add_argument('-c','--collate',action="store_true",help='Only collate existing results')
 parser.set_defaults(func=main)
 

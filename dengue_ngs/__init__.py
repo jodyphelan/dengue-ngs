@@ -12,7 +12,7 @@ from glob import glob
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+import re
 
 __version__ = "0.0.7"
 
@@ -257,15 +257,35 @@ def return_seqs_by_size(fasta_file,seq_size_cutoff):
             seqs[name] = seq
     return seqs
 
+def get_megahit_contig_depth(contigs):
+    """
+    Get the depth of a contig from a megahit assembly.
+    """
+    depth = {}
+    for line in open(contigs):
+        if line.startswith(">"):
+            r = re.search(">(\S+).+multi=(\S+)",line)
+            contig = r.group(1)
+            d = float(r.group(2))
+            depth[contig] = d
+    return depth
+
 def filter_seqs_by_size(fasta_file,output, seqname, seq_size_cutoff):
     """
     Filter a fasta file by a size cutoff.
     """
     seqs = return_seqs_by_size(fasta_file,seq_size_cutoff=seq_size_cutoff)
+
     if len(seqs) == 1:    
         with open(output,"w") as O:
             for name,seq in seqs.items():
                 O.write(">%s\n%s\n" % (seqname,seq))
+        return True
+    elif len(seqs) > 1:
+        depths = get_megahit_contig_depth(fasta_file)
+        highest_depth_contig = sorted(depths.items(),key=lambda x: x[1],reverse=True)[0][0]
+        with open(output,"w") as O:
+            O.write(">%s\n%s\n" % (seqname,seqs[highest_depth_contig]))
         return True
     else:
         return False

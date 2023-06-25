@@ -52,7 +52,7 @@ if not os.path.exists(ref_dir):
     os.makedirs(ref_dir)
 
 run_cmd("datasets download virus genome taxon 12637 --complete-only")
-run_cmd("unzip -f ncbi_dataset.zip")
+run_cmd("unzip ncbi_dataset.zip")
 
 sys.stderr.write("Processing reference files\n")
 id2tax = {}

@@ -17,7 +17,7 @@ def main(args):
 
     report.set_dict(get_fastq_stats([args.read1,args.read2]))
 
-    run_cmd("kraken2 --db /run/user/506/standard/ --memory-mapping --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads 20 %(read1)s %(read2)s" % vars(args))
+    run_cmd("kraken2 --db %(kraken_db)s --memory-mapping --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads 20 %(read1)s %(read2)s" % vars(args))
 
     report.set_dict(kreport_extract_human(f"{args.prefix}.kreport.txt"))
     report.set_dict(kreport_extract_dengue(f"{args.prefix}.kreport.txt"))
@@ -119,6 +119,7 @@ parser.add_argument('-p','--prefix',type=str,help='Prefix for output files',requ
 parser.add_argument('-t','--threads',type=int,help='Number of threads',default=4)
 parser.add_argument('--min-dp',type=int,default=50,help='Minimum depth for consensus')
 parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='kmcp',help='Minimum depth for consensus')
+parser.add_argument('--kraken-db',type=str,default='/run/user/506/standard/',help='Kraken2 database directory')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
