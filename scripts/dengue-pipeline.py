@@ -119,7 +119,7 @@ parser.add_argument('-p','--prefix',type=str,help='Prefix for output files',requ
 parser.add_argument('-t','--threads',type=int,help='Number of threads',default=4)
 parser.add_argument('--min-dp',type=int,default=50,help='Minimum depth for consensus')
 parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='kmcp',help='Minimum depth for consensus')
-parser.add_argument('--kraken-db',type=str,default='/run/user/506/standard/',help='Kraken2 database directory')
+parser.add_argument('--kraken-db',type=str,default='~/.dengue-ngs/dengue-small',help='Kraken2 database directory')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
