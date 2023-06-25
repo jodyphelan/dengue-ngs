@@ -12,6 +12,7 @@ RUN mkdir /output_data
 
 # Install our software
 RUN micromamba install -y -n base -c bioconda -c conda-forge \
+    pigz \
     git \
     zip \
     unzip \
@@ -42,13 +43,17 @@ RUN pip install git+https://github.com/jodyphelan/dengue-ngs.git
 RUN pip install git+https://github.com/jodyphelan/pathogen-profiler.git
 RUN dengue-download-ref.py
 
-# Copy local data
-COPY dengue-small ~/.dengue-ngs/
+
+RUN mkdir /krakendb
+COPY dengue-small/taxo.k2d /krakendb
+COPY dengue-small/opts.k2d /krakendb
+COPY dengue-small/hash.k2d /krakendb
+COPY dengue-small/seqid2taxid.map /krakendb
 
 # set `/data` as working directory so that the output is written to the
 # mount point when run with `docker run -v $PWD:/data ... -o output.csv`
 WORKDIR /output_data
 
-# ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py", "--fastq", "/input_data"]
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py", "--kraken-db","/krakendb","--folder", "/input_data"]
+# ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "/bin/bash"]
 

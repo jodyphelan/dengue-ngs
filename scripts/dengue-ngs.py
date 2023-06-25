@@ -6,7 +6,10 @@ import csv
 import os
 import dengue_ngs as dngs
 import json
+import multiprocessing as mp
 
+
+threads_per_job = mp.cpu_count()//4
 
 def main(args):
     ref_dir = os.path.expanduser('~')+"/.dengue-ngs/ref/"
@@ -50,8 +53,8 @@ def main(args):
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
-parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=10)
-parser.add_argument('-j','--jobs',type=int,help='File with samples',default=10)
+parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=threads_per_job)
+parser.add_argument('-j','--jobs',type=int,help='File with samples',default=4)
 parser.add_argument('-k','--kraken-db',type=str,default='~/.dengue-ngs/dengue-small',help='Kraken2 database directory')
 parser.add_argument('-c','--collate',action="store_true",help='Only collate existing results')
 parser.set_defaults(func=main)
