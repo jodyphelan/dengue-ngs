@@ -98,6 +98,8 @@ class Report:
     def __init__(self,report_file):
         self.report = {}
         self.report_file = report_file
+    def get(self,key):
+        return self.report[key]
     def set(self,key,value):
         self.report[key] = value
         self.dump()

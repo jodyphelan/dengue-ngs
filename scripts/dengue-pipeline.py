@@ -6,6 +6,7 @@ import os
 from dengue_ngs import *
 import pathogenprofiler as pp
 import shutil
+import yaml
 
 def main(args):
     tmp = str(uuid4())
@@ -29,40 +30,53 @@ def main(args):
 
     args.read1 = f"{args.prefix}.kraken_filtered.1.fq.gz"
     args.read2 = f"{args.prefix}.kraken_filtered.2.fq.gz"
+
+    if args.fix_ref:
+        consensus_by_assembly = False
+
+    else:
     
-    run_cmd(f"megahit -t {args.threads} -1 {args.read1} -2 {args.read2} -o {args.prefix}.megahit -t {args.threads}")
-    run_cmd(f"mv {args.prefix}.megahit/final.contigs.fa {args.prefix}.assembly.fasta")
-    consensus_by_assembly = filter_seqs_by_size(
-        fasta_file = f"{args.prefix}.assembly.fasta",
-        output = f"{args.prefix}.temp.fasta",
-        seqname = args.prefix,
-        seq_size_cutoff=10500
-    )
-    shutil.rmtree(f"{args.prefix}.megahit")
+        run_cmd(f"megahit -t {args.threads} -1 {args.read1} -2 {args.read2} -o {args.prefix}.megahit -t {args.threads}")
+        run_cmd(f"mv {args.prefix}.megahit/final.contigs.fa {args.prefix}.assembly.fasta")
+        consensus_by_assembly = filter_seqs_by_size(
+            fasta_file = f"{args.prefix}.assembly.fasta",
+            output = f"{args.prefix}.temp.fasta",
+            seqname = args.prefix,
+            seq_size_cutoff=10500
+        )
+        shutil.rmtree(f"{args.prefix}.megahit")
 
 
+    major_serotype = sorted([(x,report.get('Read percent dengue %s' % x)) for x in range(1,5)],key=lambda x:x[1],reverse=True)[0][0]
+    report.set("Serotype",major_serotype)
     if not consensus_by_assembly:
-
-        if args.reference_assignment_method=="sourmash":
-            args.db = "%(data_dir)s/dengue.sig" % vars(args)
-            run_cmd("sourmash sketch dna %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
-            run_cmd("sourmash gather --threshold-bp 1000 %(prefix)s.sig %(db)s -o %(prefix)s.gather.csv" % vars(args))
-            if not os.path.isfile(f"{args.prefix}.gather.csv"):
-                quit()
-            rows = [row for row in csv.DictReader(open(f"{args.prefix}.gather.csv"))]
-            if len(rows)==0:
-                quit("Can't find reference\n")
-            args.ref = rows[0]["name"].split(" ")[0]+".fasta"
+        if args.fix_ref:
+            serotype_references =  yaml.safe_load(open("%s/share/dengue-ngs/variables.yaml" % sys.base_prefix))['references']
+            args.ref = serotype_references[major_serotype]+".fasta"
+            report.set("Consensus type","Fixed reference mapping")
         else:
-            args.db = os.path.expanduser('~')+"/.dengue-ngs/refs.kmcp/"
-            run_cmd("kmcp search -j %(threads)s -d %(db)s %(read1)s  %(read2)s -o %(prefix)s.kmcp.tsv.gz" % vars(args))
-            run_cmd("kmcp profile -X %(data_dir)s/taxdump/ -T %(db)s/taxid.map -m 1 %(prefix)s.kmcp.tsv.gz -o %(prefix)s.k.profile" % vars(args))
-            if not os.path.isfile(f"{args.prefix}.k.profile"):
-                quit()
-            rows = [row for row in csv.DictReader(open(f"{args.prefix}.k.profile"),delimiter="\t")]
-            if len(rows)==0:
-                quit("Can't find reference\n")
-            args.ref = rows[0]["ref"]+".fasta"
+
+            if args.reference_assignment_method=="sourmash":
+                args.db = "%(data_dir)s/dengue.sig" % vars(args)
+                run_cmd("sourmash sketch dna %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
+                run_cmd("sourmash gather --threshold-bp 1000 %(prefix)s.sig %(db)s -o %(prefix)s.gather.csv" % vars(args))
+                if not os.path.isfile(f"{args.prefix}.gather.csv"):
+                    quit()
+                rows = [row for row in csv.DictReader(open(f"{args.prefix}.gather.csv"))]
+                if len(rows)==0:
+                    quit("Can't find reference\n")
+                args.ref = rows[0]["name"].split(" ")[0]+".fasta"
+            else:
+                args.db = os.path.expanduser('~')+"/.dengue-ngs/refs.kmcp/"
+                run_cmd("kmcp search -j %(threads)s -d %(db)s %(read1)s  %(read2)s -o %(prefix)s.kmcp.tsv.gz" % vars(args))
+                run_cmd("kmcp profile -X %(data_dir)s/taxdump/ -T %(db)s/taxid.map -m 1 %(prefix)s.kmcp.tsv.gz -o %(prefix)s.k.profile" % vars(args))
+                if not os.path.isfile(f"{args.prefix}.k.profile"):
+                    quit()
+                rows = [row for row in csv.DictReader(open(f"{args.prefix}.k.profile"),delimiter="\t")]
+                if len(rows)==0:
+                    quit("Can't find reference\n")
+                args.ref = rows[0]["ref"]+".fasta"
+                report.set("Consensus type","Closest reference mapping")
 
         pilon_correct(
             ref=f"{args.refdir}/{args.ref}",
@@ -81,7 +95,6 @@ def main(args):
         )
         os.remove(f"{args.prefix}.temp.fasta")
 
-        report.set('Consensus type','mapping')
         ## end of consensus by reference
     else:
         pilon_correct(
@@ -91,7 +104,7 @@ def main(args):
             prefix=args.prefix+".consensus",
             threads=args.threads,
         )
-        report.set('Consensus type','assembly')
+        report.set('Consensus type','Assembly')
 
     strand_direction = get_strand_direction(f"{args.prefix}.consensus.fasta",f"{args.refdir}/EU677137.1.fasta")
     if strand_direction=="-":
@@ -127,6 +140,7 @@ parser.add_argument('-t','--threads',type=int,help='Number of threads',default=4
 parser.add_argument('--min-dp',type=int,default=50,help='Minimum depth for consensus')
 parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='kmcp',help='Minimum depth for consensus')
 parser.add_argument('--kraken-db',type=str,help='Kraken2 database directory')
+parser.add_argument('--fix-ref',action="store_true",help='Use serotype reference instead of building one')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
