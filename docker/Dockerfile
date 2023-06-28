@@ -54,6 +54,6 @@ COPY dengue-small/seqid2taxid.map /krakendb
 # mount point when run with `docker run -v $PWD:/data ... -o output.csv`
 WORKDIR /output_data
 
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py", "--kraken-db","/krakendb","--folder", "/input_data"]
-# ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "/bin/bash"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py", "--folder", "/input_data"]
+
 

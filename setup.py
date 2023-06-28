@@ -10,4 +10,5 @@ setuptools.setup(
 	license="GPLv3",
 	long_description="Dengue wgs command line tool",
 	scripts= glob("scripts/*"),
+    data_files=[('share/dengue-ngs', ['data/sample_exclusion.txt'])],
 )

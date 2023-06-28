@@ -4,6 +4,10 @@ import subprocess as sp
 from tqdm import tqdm
 import sys
 from dengue_ngs import run_cmd
+import multiprocessing as mp
+
+
+threads = mp.cpu_count()//4
 
 patterns = {
     "dengue virus 1":"DENV1",
@@ -25,6 +29,12 @@ taxid = {
     "DENV3":11069,
     "DENV4":11070,
 }
+
+def get_exclude_list():
+    exclude_list = []
+    for l in open("%s/share/dengue-ngs/sample_exclusion.txt" % sys.base_prefix):
+        exclude_list.append(l.strip())
+    return(exclude_list)
 
 def stream_fasta(f):
     seq = ""
@@ -51,18 +61,22 @@ ref_dir = data_dir + "/ref/"
 if not os.path.exists(ref_dir):
     os.makedirs(ref_dir)
 
+exclude_list = get_exclude_list()
+
 run_cmd("datasets download virus genome taxon 12637 --complete-only")
-run_cmd("unzip ncbi_dataset.zip")
+run_cmd("unzip -o ncbi_dataset.zip")
 
 sys.stderr.write("Processing reference files\n")
 id2tax = {}
 for name,seq,serotype in tqdm(stream_fasta('ncbi_dataset/data/genomic.fna')):
+    if name in exclude_list:
+        continue
     if len(seq)<9000:
         continue
     if serotype is not None:
         id2tax[name] = taxid[serotype]
         with open(ref_dir + name + ".fasta",'w') as O:
-            O.write(">%s\n%s\n" % (name,seq))
+            O.write(f">{name}|kraken:taxid|{taxid[serotype]}\n{seq}\n")
 
 with open("taxid.map",'w') as O:
     for name in id2tax:
@@ -73,9 +87,17 @@ run_cmd("sourmash sketch dna --singleton ncbi_dataset/data/genomic.fna -o dengue
 
 sys.stderr.write("Creating kmcp database\n")
 run_cmd("kmcp compute --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
-run_cmd("kmcp index -f 0.001 -I refs.tmp/ -O refs.kmcp --force")
-run_cmd("mv taxid.map refs.kmcp/")
+run_cmd("kmcp index -f 0.01 -I refs.tmp/ -O refs.kmcp --force")
+run_cmd("cp taxid.map refs.kmcp/")
 
 run_cmd("wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz")
 run_cmd("mkdir -p taxdump")
 run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
+
+run_cmd("kraken2-build  --download-taxonomy --skip-maps --db kraken2")
+run_cmd("kraken2-build --download-library human --db kraken2 --use-ftp")
+run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,threads,ref_dir))
+run_cmd(f"kraken2-build --build --db kraken2 --threads {threads}")
+run_cmd("kraken2-build --clean --db kraken2")
+
+print("\nDone!\n")

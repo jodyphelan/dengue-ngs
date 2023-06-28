@@ -11,6 +11,8 @@ def main(args):
     tmp = str(uuid4())
     args.data_dir = os.path.expanduser('~')+"/.dengue-ngs/"
     args.refdir = "%(data_dir)s/ref/" % vars(args)
+    if not args.kraken_db:
+        args.kraken_db = "%(refdir)s/kraken2" % vars(args)
 
     report = Report(args.prefix+".json")
     report.set("Sample ID",args.prefix)
@@ -119,7 +121,7 @@ parser.add_argument('-p','--prefix',type=str,help='Prefix for output files',requ
 parser.add_argument('-t','--threads',type=int,help='Number of threads',default=4)
 parser.add_argument('--min-dp',type=int,default=50,help='Minimum depth for consensus')
 parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='kmcp',help='Minimum depth for consensus')
-parser.add_argument('--kraken-db',type=str,default='~/.dengue-ngs/dengue-small',help='Kraken2 database directory')
+parser.add_argument('--kraken-db',type=str,help='Kraken2 database directory')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()

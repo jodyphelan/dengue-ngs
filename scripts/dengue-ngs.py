@@ -55,7 +55,7 @@ parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
 parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=threads_per_job)
 parser.add_argument('-j','--jobs',type=int,help='File with samples',default=4)
-parser.add_argument('-k','--kraken-db',type=str,default='~/.dengue-ngs/dengue-small',help='Kraken2 database directory')
+parser.add_argument('-k','--kraken-db',type=str,help='Kraken2 database directory')
 parser.add_argument('-c','--collate',action="store_true",help='Only collate existing results')
 parser.set_defaults(func=main)
 
