@@ -12,7 +12,7 @@ def main(args):
     args.data_dir = os.path.expanduser('~')+"/.dengue-ngs/"
     args.refdir = "%(data_dir)s/ref/" % vars(args)
     if not args.kraken_db:
-        args.kraken_db = "%(refdir)s/kraken2" % vars(args)
+        args.kraken_db = f"{args.refdir}/kraken2" 
 
     report = Report(args.prefix+".json")
     report.set("Sample ID",args.prefix)
