@@ -16,6 +16,16 @@ import re
 
 __version__ = "0.0.7"
 
+def get_strand_direction(consensus,ref):
+    """
+    Get the strand direction of the consensus sequence relative to a reference sequence
+    """
+    tmpfile = str(uuid4())
+    run_cmd(f"minimap2 {ref} {consensus} > {tmpfile}.paf")
+    strand = open(f"{tmpfile}.paf").readline().strip().split()[4]
+    return strand 
+
+
 
 def plot_lofreq_results(prefix):
     # Read lofreq results

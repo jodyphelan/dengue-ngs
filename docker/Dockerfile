@@ -35,6 +35,7 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
     pandas \
     plotly \
     python-kaleido \
+    minimap2 \
     && \
     micromamba clean --all --yes
 

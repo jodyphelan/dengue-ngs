@@ -93,6 +93,11 @@ def main(args):
         )
         report.set('Consensus type','assembly')
 
+    strand_direction = get_strand_direction(f"{args.prefix}.consensus.fasta",f"{args.refdir}/EU677137.1.fasta")
+    if strand_direction=="-":
+        tmpfile = str(uuid4())
+        run_cmd(f"seqkit seq --reverse --complement -t DNA {args.prefix}.consensus.fasta > {tmpfile}")
+        shutil.move(tmpfile,f"{args.prefix}.consensus.fasta")
 
     run_cmd("bwa index %(prefix)s.consensus.fasta" % vars(args))
     run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.consensus.fasta %(read1)s %(read2)s | samtools sort -@ %(threads)s -o %(prefix)s.consensus.bam" % vars(args))
