@@ -13,6 +13,8 @@ threads_per_job = mp.cpu_count()//4
 
 def main(args):
     ref_dir = os.path.expanduser('~')+"/.dengue-ngs/ref/"
+    if not args.kraken_db:
+        args.kraken_db = "%(refdir)s/kraken2" % vars(args)
     ref_sourfile = os.path.expanduser('~')+"/.dengue-ngs/dengue.sig"
     if not os.path.exists(ref_dir) or not os.path.exists(ref_sourfile):
         sys.stderr.write("Reference files not found. Please run dengue-download-ref.py first.\n")

@@ -94,7 +94,7 @@ run_cmd("wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz")
 run_cmd("mkdir -p taxdump")
 run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
 
-run_cmd(f"kraken2-build --threads {threads}  --download-taxonomy --skip-maps --db kraken2")
+run_cmd(f"kraken2-build --threads {threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
 run_cmd(f"kraken2-build --threads {threads} --download-library human --db kraken2 --use-ftp")
 run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,threads,ref_dir))
 run_cmd(f"kraken2-build --build --db kraken2 --threads {threads}")

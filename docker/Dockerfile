@@ -44,12 +44,6 @@ RUN pip install git+https://github.com/jodyphelan/pathogen-profiler.git
 RUN dengue-download-ref.py
 
 
-RUN mkdir /krakendb
-COPY dengue-small/taxo.k2d /krakendb
-COPY dengue-small/opts.k2d /krakendb
-COPY dengue-small/hash.k2d /krakendb
-COPY dengue-small/seqid2taxid.map /krakendb
-
 # set `/data` as working directory so that the output is written to the
 # mount point when run with `docker run -v $PWD:/data ... -o output.csv`
 WORKDIR /output_data
