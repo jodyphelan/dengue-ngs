@@ -43,7 +43,7 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
 # Install pipeline
 RUN pip install git+https://github.com/jodyphelan/dengue-ngs.git
 RUN pip install git+https://github.com/jodyphelan/pathogen-profiler.git
-RUN dengue-download-ref.py --threads 4 
+RUN dengue-download-ref.py --threads 2 
 
 
 # set `/data` as working directory so that the output is written to the
