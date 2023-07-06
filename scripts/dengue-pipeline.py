@@ -20,7 +20,7 @@ def main(args):
 
     report.set_dict(get_fastq_stats([args.read1,args.read2]))
 
-    run_cmd("kraken2 --db %(kraken_db)s --memory-mapping --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads 20 %(read1)s %(read2)s" % vars(args))
+    run_cmd("kraken2 --db %(kraken_db)s --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads {args.threads} %(read1)s %(read2)s" % vars(args))
 
     report.set_dict(kreport_extract_human(f"{args.prefix}.kreport.txt"))
     report.set_dict(kreport_extract_dengue(f"{args.prefix}.kreport.txt"))
