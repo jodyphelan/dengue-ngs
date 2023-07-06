@@ -43,13 +43,13 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
 # Install pipeline
 RUN pip install git+https://github.com/jodyphelan/dengue-ngs.git
 RUN pip install git+https://github.com/jodyphelan/pathogen-profiler.git
-RUN dengue-download-ref.py
+RUN dengue-download-ref.py --threads 4 
 
 
 # set `/data` as working directory so that the output is written to the
 # mount point when run with `docker run -v $PWD:/data ... -o output.csv`
 WORKDIR /output_data
 
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py", "--folder", "/input_data"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py","--jobs","1", "--threads", "4", "--folder", "/input_data"]
 
 
