@@ -42,7 +42,8 @@ def main(args):
             fasta_file = f"{args.prefix}.assembly.fasta",
             output = f"{args.prefix}.temp.fasta",
             seqname = args.prefix,
-            seq_size_cutoff=10500
+            min_seq_size_cutoff=10000,
+            max_seq_size_cutoff=12000
         )
         shutil.rmtree(f"{args.prefix}.megahit")
 
@@ -82,14 +83,15 @@ def main(args):
             ref=f"{args.refdir}/{args.ref}",
             r1=args.read1,
             r2=args.read2,
-            prefix=args.prefix+".temp",
+            consensus_name=args.prefix+".temp.fasta",
+            bam_file=f"{args.prefix}.ref.bam",
             threads=args.threads,
         )
         
         fasta_depth_mask(
             input=f"{args.prefix}.temp.fasta",
             output=f"{args.prefix}.consensus.fasta",
-            bam_file=f"{args.prefix}.bam",
+            bam_file=f"{args.prefix}.ref.bam",
             depth_cutoff=args.min_dp,
             newchrom=args.prefix
         )
@@ -101,22 +103,22 @@ def main(args):
             ref=f"{args.prefix}.temp.fasta",
             r1=args.read1,
             r2=args.read2,
-            prefix=args.prefix+".consensus",
+            consensus_name=args.prefix+".consensus.fasta",
             threads=args.threads,
         )
         report.set('Consensus type','Assembly')
 
-    strand_direction = get_strand_direction(f"{args.prefix}.consensus.fasta",f"{args.refdir}/EU677137.1.fasta")
-    if strand_direction=="-":
-        tmpfile = str(uuid4())
-        run_cmd(f"seqkit seq --reverse --complement -t DNA {args.prefix}.consensus.fasta > {tmpfile}")
-        shutil.move(tmpfile,f"{args.prefix}.consensus.fasta")
-
+        strand_direction = get_strand_direction(f"{args.prefix}.consensus.fasta",f"{args.refdir}/EU677137.1.fasta")
+        if strand_direction=="-":
+            tmpfile = str(uuid4())
+            run_cmd(f"seqkit seq --reverse --complement -t DNA {args.prefix}.consensus.fasta > {tmpfile}")
+            shutil.move(tmpfile,f"{args.prefix}.consensus.fasta")
+    sys.stderr.write("Consensus sequence generated\n")
     run_cmd("bwa index %(prefix)s.consensus.fasta" % vars(args))
     run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.consensus.fasta %(read1)s %(read2)s | samtools sort -@ %(threads)s -o %(prefix)s.consensus.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.consensus.bam" % vars(args))
     run_cmd("bedtools genomecov -d -ibam %(prefix)s.consensus.bam > %(prefix)s.consensus.depth.txt" % vars(args))
-    run_cmd("lofreq call -f %(prefix)s.consensus.fasta -o %(prefix)s.lofreq.vcf %(prefix)s.consensus.bam" % vars(args))
+    run_cmd("lofreq call --force-overwrite -f %(prefix)s.consensus.fasta -o %(prefix)s.lofreq.vcf %(prefix)s.consensus.bam" % vars(args))
     run_cmd(r"bcftools query -f '%POS\t%REF\t%ALT\t%AF\t%DP\t%QUAL\n' " + f"{args.prefix}.lofreq.vcf > {args.prefix}.lofreq.tsv")
     remove_bwa_index(f"{args.prefix}.consensus.fasta")
     bam = pp.bam(

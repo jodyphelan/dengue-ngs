@@ -25,7 +25,8 @@ def main(args):
     run_script = "%s.sh" % uuid4()
     with open(run_script,"w") as O:
         for run in runs:
-            O.write(f"dengue-pipeline.py --kraken-db {args.kraken_db} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
+            tmp_args = "--fix-ref" if args.fix_ref else ""
+            O.write(f"dengue-pipeline.py {tmp_args} --kraken-db {args.kraken_db} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
     
     if not args.collate:
         dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs} --bar")
@@ -60,6 +61,7 @@ parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',d
 parser.add_argument('-j','--jobs',type=int,help='File with samples',default=4)
 parser.add_argument('-k','--kraken-db',type=str,help='Kraken2 database directory')
 parser.add_argument('-c','--collate',action="store_true",help='Only collate existing results')
+parser.add_argument('--fix-ref',action="store_true",help='Use serotype reference instead of building one')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()

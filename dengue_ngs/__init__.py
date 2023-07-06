@@ -25,10 +25,16 @@ def get_strand_direction(consensus,ref):
     strand = open(f"{tmpfile}.paf").readline().strip().split()[4]
     return strand 
 
-
+def file_line_count(filename):
+    """
+    Count the number of lines in a file
+    """
+    return int(sp.check_output(f"wc -l {filename}",shell=True).decode().split()[0])
 
 def plot_lofreq_results(prefix):
     # Read lofreq results
+    if file_line_count(f"{prefix}.lofreq.tsv")==0:
+        return
     df = pd.read_csv(f"{prefix}.lofreq.tsv",delimiter="\t",header = None)
     df.rename(columns={0: 'position', 1:'ref',2:'alt',3:'frequency',4:'depth',5:'qual'}, inplace=True)
     
@@ -56,6 +62,9 @@ def plot_lofreq_results(prefix):
         go.Scatter(x=dp.pos, y=dp.depth, name="Depth",mode='lines'),
         secondary_y=True
     )
+    fig.update_layout(
+        yaxis2=dict(type='log')
+    ) # update
 
     # add legend on top left
     fig.update_layout(
@@ -71,23 +80,27 @@ def plot_lofreq_results(prefix):
     # use simple white template
     fig.update_layout(template='simple_white')
 
+
     # write to pdf
-    fig.write_image(f"{prefix}.lofreq.pdf")
+    fig.write_html(f"{prefix}.lofreq.html")
 
 
 def remove_bwa_index(ref):
     for e in ["amb","ann","bwt","pac","sa"]:
         os.remove(f"{ref}.{e}")
 
-def pilon_correct(ref,r1,r2,prefix,threads=1):
+def pilon_correct(ref,r1,r2,consensus_name,bam_file=None,threads=1):
     tmp = str(uuid4())
     run_cmd(f"cp {ref} {tmp}.ref.fasta")
     run_cmd(f"bwa index {tmp}.ref.fasta")
     
-    run_cmd(f"bwa mem -t {threads} -R '@RG\\tID:{prefix}\\tSM:{prefix}\\tPL:Illumina' {tmp}.ref.fasta {r1} {r2} | samtools sort -@ {threads} -o {tmp}.bam")
+    run_cmd(f"bwa mem -t {threads} {tmp}.ref.fasta {r1} {r2} | samtools sort -@ {threads} -o {tmp}.bam")
     run_cmd(f"samtools index {tmp}.bam")
-    run_cmd(f"pilon -Xmx10g --genome {tmp}.ref.fasta --frags {tmp}.bam --output {prefix}")
-    run_cmd(f"sed -i 's/_pilon//' {prefix}.fasta")
+    run_cmd(f"pilon -Xmx10g --genome {tmp}.ref.fasta --frags {tmp}.bam --output {tmp}.consensus")
+    run_cmd(f"sed 's/_pilon//' {tmp}.consensus.fasta > {consensus_name}")
+    if bam_file:
+        run_cmd(f"mv {tmp}.bam {bam_file}")
+        run_cmd(f"mv {tmp}.bam.bai {bam_file}.bai")
     for f in glob(f"{tmp}.*"):
         os.remove(f)
     
@@ -166,9 +179,24 @@ def kreport_extract_dengue(kreport_file):
         "Read percent dengue 4":d4_reads
     }
 
-def run_cmd(cmd):
-    sys.stderr.write(f"Running: {cmd}\n")
-    sp.call(cmd,shell=True)
+def run_cmd(cmd,verbose=1,terminate_on_error=True):
+    cmd = "set -u pipefail; " + cmd
+    if verbose>0:
+        sys.stderr.write("\nRunning command:\n%s\n" % cmd)
+
+    p = sp.Popen(cmd,shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
+    stdout,stderr = p.communicate()
+
+    if terminate_on_error is True and p.returncode!=0:
+        raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,stderr.decode()))
+
+    if verbose>1:
+        sys.stdout.write(stdout)
+        sys.stderr.write(stderr)
+
+    return (stdout.decode(),stderr.decode())
+
+
 
 class Sample:
     def __init__(self,prefix,r1,r2):
@@ -220,20 +248,22 @@ def get_fasta_missing_content(fasta_file):
     """
     Get the missing content of a fasta file.
     """
+    sys.stderr.write("Getting missing content of %s\n" % fasta_file)
     fasta = pp.fasta(fasta_file)
     seq = list(fasta.fa_dict.values())[0]
-    missing = round(seq.count("N")/len(seq)*100)
+    missing = round(seq.count("-")/len(seq)*100)
     return missing
 
 def mask_fasta(input,output,positions,newchrom=None):
     """
     Mask the fasta file with Ns.
     """
+    sys.stderr.write("Masking %s\n" % input)
     fasta = pp.fasta(input)
     seq = list(list(fasta.fa_dict.values())[0])
 
     for chrom,pos in positions:
-        seq[pos-1] = "N"
+        seq[pos-1] = "-"
     
     with open(output,"w") as O:
         O.write(">%s\n%s\n" % (newchrom,''.join(seq)))
@@ -251,13 +281,13 @@ def get_missing_positions(bam,depth_cutoff=50):
 
 def fasta_depth_mask(input,output,bam_file,depth_cutoff=50,newchrom=None):
     """
-    Mask the fasta file with Ns based on the depth of the bam file.
+    Mask the fasta file with - based on the depth of the bam file.
     """
     positions = get_missing_positions(bam_file,depth_cutoff=depth_cutoff)
     mask_fasta(input,output,positions,newchrom=newchrom)
 
 
-def return_seqs_by_size(fasta_file,seq_size_cutoff):
+def return_seqs_by_size(fasta_file,min_seq_size_cutoff,max_seq_size_cutoff):
     """
     Return a list of sequences from a fasta file that are 
     above a certain size cutoff.
@@ -265,7 +295,7 @@ def return_seqs_by_size(fasta_file,seq_size_cutoff):
     fasta = pp.fasta(fasta_file)
     seqs = {}
     for name,seq in fasta.fa_dict.items():
-        if len(seq) > seq_size_cutoff:
+        if len(seq) > min_seq_size_cutoff and len(seq) < max_seq_size_cutoff:
             seqs[name] = seq
     return seqs
 
@@ -282,12 +312,11 @@ def get_megahit_contig_depth(contigs):
             depth[contig] = d
     return depth
 
-def filter_seqs_by_size(fasta_file,output, seqname, seq_size_cutoff):
+def filter_seqs_by_size(fasta_file,output, seqname, min_seq_size_cutoff, max_seq_size_cutoff):
     """
     Filter a fasta file by a size cutoff.
     """
-    seqs = return_seqs_by_size(fasta_file,seq_size_cutoff=seq_size_cutoff)
-
+    seqs = return_seqs_by_size(fasta_file,min_seq_size_cutoff=min_seq_size_cutoff,max_seq_size_cutoff=max_seq_size_cutoff)
     if len(seqs) == 1:    
         with open(output,"w") as O:
             for name,seq in seqs.items():
@@ -295,7 +324,7 @@ def filter_seqs_by_size(fasta_file,output, seqname, seq_size_cutoff):
         return True
     elif len(seqs) > 1:
         depths = get_megahit_contig_depth(fasta_file)
-        highest_depth_contig = sorted(depths.items(),key=lambda x: x[1],reverse=True)[0][0]
+        highest_depth_contig = sorted([x for x in depths.items() if x[0] in seqs],key=lambda x: x[1],reverse=True)[0][0]
         with open(output,"w") as O:
             O.write(">%s\n%s\n" % (seqname,seqs[highest_depth_contig]))
         return True
