@@ -10,6 +10,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--threads",default=mp.cpu_count()//4,type=int)
 
+args = parser.parse_args()
 
 
 
