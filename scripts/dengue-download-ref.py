@@ -5,9 +5,13 @@ from tqdm import tqdm
 import sys
 from dengue_ngs import run_cmd
 import multiprocessing as mp
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--threads",default=mp.cpu_count()//4,type=int)
 
 
-threads = mp.cpu_count()//4
+
 
 patterns = {
     "dengue virus 1":"DENV1",
@@ -94,10 +98,10 @@ run_cmd("wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz")
 run_cmd("mkdir -p taxdump")
 run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
 
-run_cmd(f"kraken2-build --threads {threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
-run_cmd(f"kraken2-build --threads {threads} --download-library human --db kraken2 --use-ftp")
-run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,threads,ref_dir))
-run_cmd(f"kraken2-build --build --db kraken2 --threads {threads}")
+run_cmd(f"kraken2-build --threads {args.threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
+run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
+run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,args.threads,ref_dir))
+run_cmd(f"kraken2-build --build --db kraken2 --threads {args.threads}")
 run_cmd("kraken2-build --clean --db kraken2")
 
 print("\nDone!\n")
