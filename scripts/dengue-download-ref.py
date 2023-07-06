@@ -9,6 +9,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--threads",default=mp.cpu_count()//4,type=int)
+parser.add_argument("--no-kraken",action="store_true")
 
 args = parser.parse_args()
 
@@ -99,10 +100,11 @@ run_cmd("wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz")
 run_cmd("mkdir -p taxdump")
 run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
 
-run_cmd(f"kraken2-build --threads {args.threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
-run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
-run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,args.threads,ref_dir))
-run_cmd(f"kraken2-build --build --db kraken2 --threads {args.threads}")
-run_cmd("kraken2-build --clean --db kraken2")
+if not args.no_kraken:
+    run_cmd(f"kraken2-build --threads {args.threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
+    run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
+    run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,args.threads,ref_dir))
+    run_cmd(f"kraken2-build --build --db kraken2 --threads {args.threads}")
+    run_cmd("kraken2-build --clean --db kraken2")
 
 print("\nDone!\n")
