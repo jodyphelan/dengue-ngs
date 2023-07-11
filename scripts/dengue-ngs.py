@@ -29,14 +29,14 @@ def main(args):
             O.write(f"dengue-pipeline.py {tmp_args} --kraken-db {args.kraken_db} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
     
     if not args.collate:
-        dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs}")
+        dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs}", terminate_on_error=False)
     
     results = []
 
     fieldnames = [
         "Sample ID","Number of reads","Average read length","Read percent human",
         "Read percent dengue","Read percent dengue 1","Read percent dengue 2",
-        "Read percent dengue 3", "Read percent dengue 4","Consensus type",
+        "Read percent dengue 3", "Read percent dengue 4","Serotype","Consensus type",
         "Median depth","Reference_coverage"
     ]
 
