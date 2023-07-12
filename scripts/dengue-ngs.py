@@ -55,6 +55,8 @@ def main(args):
         writer.writeheader()
         writer.writerows(results)
 
+    sys.stderr.write("Done!\n")
+    
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
 parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=threads_per_job)

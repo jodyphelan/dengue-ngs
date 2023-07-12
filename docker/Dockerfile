@@ -51,6 +51,6 @@ RUN dengue-download-ref.py --threads 2
 # mount point when run with `docker run -v $PWD:/data ... -o output.csv`
 WORKDIR /output_data
 
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py","--jobs","1", "--threads", "4", "--folder", "/input_data"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh", "dengue-ngs.py","--fix-ref","--jobs","1", "--threads", "4", "--folder", "/input_data"]
 
 
