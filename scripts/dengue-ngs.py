@@ -37,7 +37,7 @@ def main(args):
         "Sample ID","Number of reads","Average read length","Read percent human",
         "Read percent dengue","Read percent dengue 1","Read percent dengue 2",
         "Read percent dengue 3", "Read percent dengue 4","Serotype","Consensus type",
-        "Median depth","Reference_coverage"
+        "Median depth","Reference_coverage","Analysis completed"
     ]
 
     for run in runs:

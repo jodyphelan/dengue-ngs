@@ -37,6 +37,7 @@ RUN micromamba install -y -n base -c bioconda -c conda-forge \
     python-kaleido \
     minimap2 \
     pyyaml \
+    procps-ng \
     && \
     micromamba clean --all --yes
 

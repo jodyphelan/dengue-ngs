@@ -92,8 +92,8 @@ sys.stderr.write("Creating sourmash signature\n")
 run_cmd("sourmash sketch dna --singleton ncbi_dataset/data/genomic.fna -o dengue.sig")
 
 sys.stderr.write("Creating kmcp database\n")
-run_cmd("kmcp compute --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
-run_cmd("kmcp index -f 0.01 -I refs.tmp/ -O refs.kmcp --force")
+run_cmd(f"kmcp compute -j {args.threads} --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
+run_cmd(f"kmcp index -j {args.threads} -f 0.01 -I refs.tmp/ -O refs.kmcp --force")
 run_cmd("cp taxid.map refs.kmcp/")
 
 run_cmd("wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz")

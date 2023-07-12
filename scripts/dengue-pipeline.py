@@ -17,6 +17,7 @@ def main(args):
 
     report = Report(args.prefix+".json")
     report.set("Sample ID",args.prefix)
+    report.set("Analysis completed","no")
 
     report.set_dict(get_fastq_stats([args.read1,args.read2]))
 
@@ -70,7 +71,7 @@ def main(args):
             else:
                 args.db = os.path.expanduser('~')+"/.dengue-ngs/refs.kmcp/"
                 run_cmd("kmcp search -j %(threads)s -d %(db)s %(read1)s  %(read2)s -o %(prefix)s.kmcp.tsv.gz" % vars(args))
-                run_cmd("kmcp profile -X %(data_dir)s/taxdump/ -T %(db)s/taxid.map -m 1 %(prefix)s.kmcp.tsv.gz -o %(prefix)s.k.profile" % vars(args))
+                run_cmd("kmcp profile -j %(threads)s -X %(data_dir)s/taxdump/ -T %(db)s/taxid.map -m 1 %(prefix)s.kmcp.tsv.gz -o %(prefix)s.k.profile" % vars(args))
                 if not os.path.isfile(f"{args.prefix}.k.profile"):
                     quit()
                 rows = [row for row in csv.DictReader(open(f"{args.prefix}.k.profile"),delimiter="\t")]
@@ -132,6 +133,7 @@ def main(args):
     report.set("Median depth",bam.get_median_coverage(f"{args.prefix}.fasta"))
     report.set("Reference_coverage", 100 - get_fasta_missing_content(f"{args.prefix}.consensus.fasta"))   
 
+    report.set("Analysis completed","yes")
 
 
 parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
