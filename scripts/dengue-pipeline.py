@@ -32,10 +32,8 @@ def main(args):
     args.read1 = f"{args.prefix}.kraken_filtered.1.fq.gz"
     args.read2 = f"{args.prefix}.kraken_filtered.2.fq.gz"
 
-    if args.fix_ref:
-        consensus_by_assembly = False
 
-    else:
+    if args.assemble==True:
     
         run_cmd(f"megahit -t {args.threads} -1 {args.read1} -2 {args.read2} -o {args.prefix}.megahit -t {args.threads}")
         run_cmd(f"mv {args.prefix}.megahit/final.contigs.fa {args.prefix}.assembly.fasta")
@@ -47,7 +45,8 @@ def main(args):
             max_seq_size_cutoff=12000
         )
         shutil.rmtree(f"{args.prefix}.megahit")
-
+    else:
+        consensus_by_assembly = False
 
     major_serotype = sorted([(x,report.get('Read percent dengue %s' % x)) for x in range(1,5)],key=lambda x:x[1],reverse=True)[0][0]
     report.set("Serotype",major_serotype)
@@ -145,6 +144,7 @@ parser.add_argument('--min-dp',type=int,default=50,help='Minimum depth for conse
 parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='kmcp',help='Minimum depth for consensus')
 parser.add_argument('--kraken-db',type=str,help='Kraken2 database directory')
 parser.add_argument('--fix-ref',action="store_true",help='Use serotype reference instead of building one')
+parser.add_argument('--assemble',action="store_true",help='Try assembly')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
