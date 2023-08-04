@@ -118,7 +118,7 @@ def main(args):
     run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.consensus.fasta %(read1)s %(read2)s | samtools sort -@ %(threads)s -o %(prefix)s.consensus.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.consensus.bam" % vars(args))
     # run_cmd("bedtools genomecov -d -ibam %(prefix)s.consensus.bam > %(prefix)s.consensus.depth.txt" % vars(args))
-    run_cmd(r"bcftools query -f '%POS\t%REF\t%ALT\t%AF\t%DP\t%QUAL\n' " + f"{args.prefix}.lofreq.vcf > {args.prefix}.lofreq.tsv")
+    
     remove_bwa_index(f"{args.prefix}.consensus.fasta")
     bam = pp.bam(
         bam_file=args.prefix+".consensus.bam",
