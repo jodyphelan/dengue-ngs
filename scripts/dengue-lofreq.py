@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import argparse
 import dengue_ngs as dn
+import os
 
 """
 This script reads in a alignment file and for each sequence in the alignment, it will
@@ -35,6 +36,8 @@ for name,seq in stream_fasta(args.alignment):
     dn.run_cmd(f"bwa mem -t {args.threads} {ref} {name}.kraken_filtered.1.fq.gz {name}.kraken_filtered.2.fq.gz | samtools sort -@ {args.threads} -o {args.alignment}.{name}.bam -")
     dn.run_cmd(f"samtools index {args.alignment}.{name}.bam")
     dn.run_cmd(f"samtools faidx {ref}")
-    dn.run_cmd(f"lofreq call --force --force-overwrite --ref {ref} -o {name}.lofreq.vcf {args.alignment}.{name}.bam")
+    if os.path.exists(f"{name}.lofreq.vcf"):
+        os.remove(f"{name}.lofreq.vcf")
+    dn.run_cmd(f"lofreq call-parallel --pp-threads {args.threads} --force-overwrite --ref {ref} -o {name}.lofreq.vcf {args.alignment}.{name}.bam")
     dn.run_cmd(r"bcftools query -f '%POS\t%REF\t%ALT\t%AF\t%DP\t%QUAL\n' " + f"{name}.lofreq.vcf > {name}.lofreq.tsv")
 
