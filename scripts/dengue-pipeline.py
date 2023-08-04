@@ -117,8 +117,7 @@ def main(args):
     run_cmd("bwa index %(prefix)s.consensus.fasta" % vars(args))
     run_cmd("bwa mem -t %(threads)s -R '@RG\\tID:%(prefix)s\\tSM:%(prefix)s\\tPL:Illumina' %(prefix)s.consensus.fasta %(read1)s %(read2)s | samtools sort -@ %(threads)s -o %(prefix)s.consensus.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.consensus.bam" % vars(args))
-    run_cmd("bedtools genomecov -d -ibam %(prefix)s.consensus.bam > %(prefix)s.consensus.depth.txt" % vars(args))
-    run_cmd("lofreq call --force-overwrite -f %(prefix)s.consensus.fasta -o %(prefix)s.lofreq.vcf %(prefix)s.consensus.bam" % vars(args))
+    # run_cmd("bedtools genomecov -d -ibam %(prefix)s.consensus.bam > %(prefix)s.consensus.depth.txt" % vars(args))
     run_cmd(r"bcftools query -f '%POS\t%REF\t%ALT\t%AF\t%DP\t%QUAL\n' " + f"{args.prefix}.lofreq.vcf > {args.prefix}.lofreq.tsv")
     remove_bwa_index(f"{args.prefix}.consensus.fasta")
     bam = pp.bam(
@@ -127,7 +126,7 @@ def main(args):
         platform="Illumina"
     )
     
-    plot_lofreq_results(args.prefix)
+    # plot_lofreq_results(args.prefix)
 
     report.set("Median depth",bam.get_median_coverage(f"{args.prefix}.fasta"))
     report.set("Reference_coverage", 100 - get_fasta_missing_content(f"{args.prefix}.consensus.fasta"))   
