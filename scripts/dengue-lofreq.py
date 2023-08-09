@@ -41,3 +41,5 @@ for name,seq in stream_fasta(args.alignment):
     dn.run_cmd(f"lofreq call-parallel --pp-threads {args.threads} --force-overwrite --ref {ref} -o {name}.lofreq.vcf {args.alignment}.{name}.bam")
     dn.run_cmd(r"bcftools query -f '%POS\t%REF\t%ALT\t%AF\t%DP\t%QUAL\n' " + f"{name}.lofreq.vcf > {name}.lofreq.tsv")
 
+    dn.run_cmd(f"bedtools genomecov -d -ibam {args.alignment}.{name}.bam > {args.alignment}.{name}.depth.txt")
+    dn.plot_lofreq_results(name,f"{name}.lofreq.tsv",f"{args.alignment}.{name}.depth.txt")

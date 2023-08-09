@@ -31,15 +31,15 @@ def file_line_count(filename):
     """
     return int(sp.check_output(f"wc -l {filename}",shell=True).decode().split()[0])
 
-def plot_lofreq_results(prefix):
+def plot_lofreq_results(prefix,lofreq_tsv,depth_file):
     # Read lofreq results
-    if file_line_count(f"{prefix}.lofreq.tsv")==0:
+    if file_line_count(lofreq_tsv)==0:
         return
-    df = pd.read_csv(f"{prefix}.lofreq.tsv",delimiter="\t",header = None)
+    df = pd.read_csv(lofreq_tsv,delimiter="\t",header = None)
     df.rename(columns={0: 'position', 1:'ref',2:'alt',3:'frequency',4:'depth',5:'qual'}, inplace=True)
     
     # Read depth
-    dp = pd.read_csv(f"{prefix}.consensus.depth.txt", delimiter="\t",header = None)
+    dp = pd.read_csv(depth_file, delimiter="\t",header = None)
     dp.rename(columns={0: 'chrom', 1:'pos',2:'depth'}, inplace=True)
 
     # Create figure with secondary y-axis
