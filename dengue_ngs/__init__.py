@@ -14,7 +14,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"
 
 def get_strand_direction(consensus,ref):
     """
