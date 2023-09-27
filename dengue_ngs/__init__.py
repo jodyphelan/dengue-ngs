@@ -89,21 +89,65 @@ def remove_bwa_index(ref):
     for e in ["amb","ann","bwt","pac","sa"]:
         os.remove(f"{ref}.{e}")
 
-def pilon_correct(ref,r1,r2,consensus_name,bam_file=None,threads=1):
+def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_depth=50):
     tmp = str(uuid4())
     run_cmd(f"cp {ref} {tmp}.ref.fasta")
-    run_cmd(f"bwa index {tmp}.ref.fasta")
+    if platform.lower()=="illumina":
+        run_cmd(f"bwa index {tmp}.ref.fasta")
     
-    run_cmd(f"bwa mem -t {threads} {tmp}.ref.fasta {r1} {r2} | samtools sort -@ {threads} -o {tmp}.bam")
-    run_cmd(f"samtools index {tmp}.bam")
-    run_cmd(f"pilon -Xmx10g --genome {tmp}.ref.fasta --frags {tmp}.bam --output {tmp}.consensus")
+        run_cmd(f"bwa mem -t {threads} {tmp}.ref.fasta {r1} {r2} | samtools sort -@ {threads} -o {tmp}.bam")
+        run_cmd(f"samtools index {tmp}.bam")
+        run_cmd(f"pilon -Xmx10g --genome {tmp}.ref.fasta --frags {tmp}.bam --output {tmp}.consensus --mindepth {min_depth} --vcf")
+    elif platform.lower()=="nanopore":
+        run_cmd(f"minimap2 -ax map-ont {ref} {r1} | samtools sort -@ {threads} -o {tmp}.bam")
+        run_cmd(f"samtools index {tmp}.bam")
+        run_cmd(f"pilon -Xmx10g --genome {ref} --nanopore {tmp}.bam --output {tmp}.consensus --mindepth {min_depth} --vcf")
+    
+    run_cmd(f"bcftools view -v snps -i 'FILTER=\"PASS\" & QUAL>0'  -c 2 {tmp}.consensus.vcf -Oz -o {tmp}.variants.vcf.gz")
+    run_cmd(f"tabix {tmp}.variants.vcf.gz")
+    run_cmd(f"bcftools consensus -f {tmp}.ref.fasta {tmp}.variants.vcf.gz > {tmp}.consensus.fasta")
+    
+    # run_cmd(f"bcftools query -f '%POS\\t%FILTER\\n' {tmp}.consensus.vcf > {tmp}.consensus.info")
+    # mask_positions = []
+    # for line in open(f"{tmp}.consensus.info"):
+    #     pos,filter = line.strip().split("\t")
+    #     if filter!="PASS":
+    #         mask_positions.append(('chromosome',int(pos)))
+
+    # mask_fasta(f"{tmp}.consensus.fasta",consensus_name,mask_positions,newchrom=consensus_name)
     run_cmd(f"sed 's/_pilon//' {tmp}.consensus.fasta > {consensus_name}")
+
+    run_cmd(f"mv {tmp}.consensus.vcf {consensus_name}.vcf")
     if bam_file:
         run_cmd(f"mv {tmp}.bam {bam_file}")
         run_cmd(f"mv {tmp}.bam.bai {bam_file}.bai")
     for f in glob(f"{tmp}.*"):
         os.remove(f)
     
+def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,threads=1,min_depth=50):
+    tmp = str(uuid4())
+    run_cmd(f"cp {ref} {tmp}.ref.fasta")
+    if bam is None:
+        if platform.lower()=="illumina":
+            run_cmd(f"bwa index {tmp}.ref.fasta")
+            run_cmd(f"bwa mem -t {threads} {tmp}.ref.fasta {r1} {r2} | samtools sort -@ {threads} -o {tmp}.bam")
+        elif platform.lower()=="nanopore":
+            run_cmd(f"minimap2 -t {threads} -ax map-ont {ref} {r1} | samtools sort -@ {threads} -o {tmp}.bam")
+        bam = f"{tmp}.bam"
+    run_cmd(f"samtools index {bam}")
+    run_cmd(f"freebayes -f {tmp}.ref.fasta {bam} -F 0.5 | bcftools norm -a | bcftools view -v snps -Oz -o {tmp}.variants.vcf.gz")
+    
+    run_cmd(f"tabix {tmp}.variants.vcf.gz")
+    run_cmd(f"bcftools consensus -f {tmp}.ref.fasta {tmp}.variants.vcf.gz > {tmp}.consensus.fasta")
+    
+    run_cmd(f"bcftools view -i 'GT=\"het\"' {tmp}.variants.vcf.gz | bcftools query -f '%POS\\n' > {tmp}.het.pos")
+    to_mask = []
+    for line in open(f"{tmp}.het.pos"):
+        to_mask.append(('chromosome',int(line.strip())))
+    mask_fasta(f"{tmp}.consensus.fasta",output,to_mask,newchrom=prefix)
+    # run_cmd(f"mv {tmp}.consensus.fasta {output}")
+    for f in glob(f"{tmp}.*"):
+        os.remove(f)
 
 
 
@@ -125,9 +169,12 @@ class Report:
             json.dump(self.report,O,indent=4)
 
 
-def get_fastq_stats(fastq_files):
+def get_fastq_stats(read1,read2=None):
     tmpfile = "%s.txt" % uuid4()
-    run_cmd(f"seqkit stats -T {' '.join(fastq_files)} > {tmpfile}")
+    if read2:
+        run_cmd(f"seqkit stats -T {read1} {read2} > {tmpfile}")
+    else:
+        run_cmd(f"seqkit stats -T {read1} > {tmpfile}")
     numreads = 0
     lengths = []
     for row in csv.DictReader(open(tmpfile),delimiter="\t"):
@@ -262,8 +309,11 @@ def mask_fasta(input,output,positions,newchrom=None):
     fasta = pp.fasta(input)
     seq = list(list(fasta.fa_dict.values())[0])
 
+    if not newchrom:
+        newchrom = list(fasta.fa_dict)[0]
+
     for chrom,pos in positions:
-        seq[pos-1] = "-"
+        seq[pos-1] = "N"
     
     with open(output,"w") as O:
         O.write(">%s\n%s\n" % (newchrom,''.join(seq)))

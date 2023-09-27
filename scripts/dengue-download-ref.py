@@ -64,8 +64,11 @@ if not os.path.exists(data_dir):
     os.makedirs(data_dir)
 os.chdir(data_dir)
 ref_dir = data_dir + "/ref/"
+kraken_ref_dir = data_dir + "/kraken_ref/"
 if not os.path.exists(ref_dir):
     os.makedirs(ref_dir)
+if not os.path.exists(kraken_ref_dir):
+    os.makedirs(kraken_ref_dir)
 
 exclude_list = get_exclude_list()
 
@@ -81,8 +84,10 @@ for name,seq,serotype in tqdm(stream_fasta('ncbi_dataset/data/genomic.fna')):
         continue
     if serotype is not None:
         id2tax[name] = taxid[serotype]
-        with open(ref_dir + name + ".fasta",'w') as O:
+        with open(kraken_ref_dir + name + ".fasta",'w') as O:
             O.write(f">{name}|kraken:taxid|{taxid[serotype]}\n{seq}\n")
+        with open(ref_dir + name + ".fasta",'w') as O:
+            O.write(f">{name}\n{seq}\n")
 
 with open("taxid.map",'w') as O:
     for name in id2tax:
@@ -103,7 +108,7 @@ run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
 if not args.no_kraken:
     run_cmd(f"kraken2-build --threads {args.threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
     run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
-    run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (ref_dir,args.threads,ref_dir))
+    run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (kraken_ref_dir,args.threads,kraken_ref_dir))
     run_cmd(f"kraken2-build --build --db kraken2 --threads {args.threads}")
     run_cmd("kraken2-build --clean --db kraken2")
 
