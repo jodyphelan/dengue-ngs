@@ -89,12 +89,28 @@ for name,seq,serotype in tqdm(stream_fasta('ncbi_dataset/data/genomic.fna')):
         with open(ref_dir + name + ".fasta",'w') as O:
             O.write(f">{name}\n{seq}\n")
 
+run_cmd("datasets download virus genome accession JQ045626.1")
+run_cmd("unzip -o ncbi_dataset.zip")
+
+for name,seq,serotype in tqdm(stream_fasta('ncbi_dataset/data/genomic.fna')):
+    if name in exclude_list:
+        continue
+    if len(seq)<9000:
+        continue
+    if serotype is not None:
+        id2tax[name] = taxid[serotype]
+        with open(kraken_ref_dir + name + ".fasta",'w') as O:
+            O.write(f">{name}|kraken:taxid|{taxid[serotype]}\n{seq}\n")
+        with open(ref_dir + name + ".fasta",'w') as O:
+            O.write(f">{name}\n{seq}\n")
+
 with open("taxid.map",'w') as O:
     for name in id2tax:
         O.write("%s\t%s\n" % (name,id2tax[name]))
 
 sys.stderr.write("Creating sourmash signature\n")
-run_cmd("sourmash sketch dna --singleton ncbi_dataset/data/genomic.fna -o dengue.sig")
+run_cmd("sourmash sketch dna -p scaled=10 ~/.dengue-ngs/ref/*.fasta --name-from-first -o dengue.sig")
+# run_cmd("sourmash index dengue.sig ref/*.sig")
 
 sys.stderr.write("Creating kmcp database\n")
 run_cmd(f"kmcp compute -j {args.threads} --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
@@ -106,6 +122,7 @@ run_cmd("mkdir -p taxdump")
 run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
 
 if not args.no_kraken:
+    sys.stderr.write("Creating kraken2 database\n")
     run_cmd(f"kraken2-build --threads {args.threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
     run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
     run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (kraken_ref_dir,args.threads,kraken_ref_dir))

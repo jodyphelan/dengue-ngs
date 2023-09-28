@@ -7,11 +7,21 @@ import os
 import dengue_ngs as dngs
 import json
 import multiprocessing as mp
+from joblib import Parallel, delayed
+from tqdm import tqdm
+from rich_argparse import ArgumentDefaultsRichHelpFormatter
+import logging
+from rich.logging import RichHandler
+
+
 
 
 threads_per_job = mp.cpu_count()//4
 
 def main(args):
+    if args.fix_ref and args.serotype_ref:
+        sys.stderr.write("Cannot use both --fix-ref and --serotype-ref\n")
+        sys.exit(1)
     data_dir = os.path.expanduser('~')+"/.dengue-ngs/"
     ref_dir = os.path.expanduser('~')+"/.dengue-ngs/ref/"
     if not args.kraken_db:
@@ -23,13 +33,17 @@ def main(args):
 
     runs = dngs.find_fastq_files(args.folder)
     run_script = "%s.sh" % uuid4()
+    commands = []
     with open(run_script,"w") as O:
         for run in runs:
-            tmp_args = "--fix-ref" if args.fix_ref else ""
-            O.write(f"dengue-pipeline.py {tmp_args} --kraken-db {args.kraken_db} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log 2>&1\n")
+            tmp_args = f" --fix-ref {args.fix_ref} " if args.fix_ref else ""  + " --serotype-ref " if args.serotype_ref else ""
+
+            commands.append(f"dengue-pipeline.py {tmp_args} --kraken-db {args.kraken_db} --platform {args.platform} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log")
     
-    if not args.collate:
-        dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs}", terminate_on_error=False)
+    parallel = Parallel(n_jobs=args.jobs, return_as='generator')
+    [r for r in tqdm(parallel(delayed(dngs.run_cmd)(cmd) for cmd in commands),total=len(commands),desc="Running jobs")]
+    # if not args.collate:
+    #     dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs}", terminate_on_error=False)
     
     results = []
 
@@ -57,14 +71,22 @@ def main(args):
 
     sys.stderr.write("Done!\n")
     
-parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser = argparse.ArgumentParser(description='tbprofiler script',formatter_class=ArgumentDefaultsRichHelpFormatter)
 parser.add_argument('-f','--folder',type=str,help='File with samples',required = True)
 parser.add_argument('-t','--threads-per-job',type=int,help='File with samples',default=threads_per_job)
 parser.add_argument('-j','--jobs',type=int,help='File with samples',default=4)
 parser.add_argument('-k','--kraken-db',type=str,help='Kraken2 database directory')
+parser.add_argument('--platform',type=str,choices=['illumina','nanopore'],help='Sequencing platform',required=True)
 parser.add_argument('-c','--collate',action="store_true",help='Only collate existing results')
-parser.add_argument('--fix-ref',action="store_true",help='Use serotype reference instead of building one')
+parser.add_argument('--serotype-ref',action="store_true",help='Use serotype reference instead of building one')
+parser.add_argument('--fix-ref',help='Force a reference instead of building one')
+parser.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
+
+logging.basicConfig(
+    level=args.logging, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+)
+
 args.func(args)

@@ -13,6 +13,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import re
+import logging
 
 __version__ = "0.0.10"
 
@@ -226,22 +227,29 @@ def kreport_extract_dengue(kreport_file):
         "Read percent dengue 4":d4_reads
     }
 
-def run_cmd(cmd,verbose=1,terminate_on_error=True):
-    cmd = "set -u pipefail; " + cmd
-    if verbose>0:
-        sys.stderr.write("\nRunning command:\n%s\n" % cmd)
+def which(program):
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
-    p = sp.Popen(cmd,shell=True, stdout=sp.PIPE, stderr=sp.PIPE)
-    stdout,stderr = p.communicate()
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return True
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return True
+    return False
 
-    if terminate_on_error is True and p.returncode!=0:
-        raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,stderr.decode()))
-
-    if verbose>1:
-        sys.stdout.write(stdout)
-        sys.stderr.write(stderr)
-
-    return (stdout.decode(),stderr.decode())
+def run_cmd(cmd: str, desc=None, log: str=None) -> sp.CompletedProcess:
+    cmd = "/bin/bash -c set -o pipefail; " + cmd
+    logging.debug(f"Running command: {cmd}")
+    output = open(log,"w") if log else sp.PIPE
+    result = sp.run(cmd,shell=True,stderr=output,stdout=output)
+    if result.returncode != 0:
+        raise ValueError("Command Failed:\n%s\nstderr:\n%s" % (cmd,result.stderr.decode()))
+    return result
 
 
 

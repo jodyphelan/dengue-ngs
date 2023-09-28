@@ -7,6 +7,8 @@ from dengue_ngs import *
 import pathogenprofiler as pp
 import shutil
 import yaml
+import logging
+from rich.logging import RichHandler
 
 def main(args):
     tmp = str(uuid4())
@@ -71,7 +73,7 @@ def main(args):
 
             if args.reference_assignment_method=="sourmash":
                 args.db = "%(data_dir)s/dengue.sig" % vars(args)
-                run_cmd("sourmash sketch dna %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
+                run_cmd("sourmash sketch dna -p abund,scaled=10 %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
                 run_cmd("sourmash gather --threshold-bp 1000 %(prefix)s.sig %(db)s -o %(prefix)s.gather.csv" % vars(args))
                 if not os.path.isfile(f"{args.prefix}.gather.csv"):
                     quit()
@@ -80,6 +82,9 @@ def main(args):
                     quit("Can't find reference\n")
                 args.ref = rows[0]["name"].split(" ")[0]+".fasta"
                 args.ref = f"{args.refdir}/{args.ref}"
+                report.set("Consensus type","Closest reference mapping")
+                report.set("Reference used",args.ref)
+                
             else:
                 args.db = os.path.expanduser('~')+"/.dengue-ngs/refs.kmcp/"
                 run_cmd("kmcp search -j %(threads)s -d %(db)s %(read1)s  %(read2)s -o %(prefix)s.kmcp.tsv.gz" % vars(args))
@@ -92,6 +97,7 @@ def main(args):
                 args.ref = rows[0]["ref"]+".fasta"
                 args.ref = f"{args.refdir}/{args.ref}"
                 report.set("Consensus type","Closest reference mapping")
+                report.set("Reference used",args.ref)
 
         pilon_correct(
             ref=args.ref,
@@ -169,12 +175,18 @@ parser.add_argument('-p','--prefix',type=str,help='Prefix for output files',requ
 parser.add_argument('--platform',type=str,choices=['illumina','nanopore'],help='Sequencing platform',required=True)
 parser.add_argument('-t','--threads',type=int,help='Number of threads',default=4)
 parser.add_argument('--min-dp',type=int,default=50,help='Minimum depth for consensus')
-parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='kmcp',help='Minimum depth for consensus')
+parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','sourmash'],default='sourmash',help='Minimum depth for consensus')
 parser.add_argument('--kraken-db',type=str,help='Kraken2 database directory')
 parser.add_argument('--serotype-ref',action="store_true",help='Use serotype reference instead of building one')
 parser.add_argument('--fix-ref',help='Force a reference instead of building one')
 parser.add_argument('--assemble',action="store_true",help='Try assembly')
+parser.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()
+
+logging.basicConfig(
+    level=args.logging, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()]
+)
+
 args.func(args)
