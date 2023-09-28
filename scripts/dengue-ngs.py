@@ -42,8 +42,7 @@ def main(args):
     
     parallel = Parallel(n_jobs=args.jobs, return_as='generator')
     [r for r in tqdm(parallel(delayed(dngs.run_cmd)(cmd) for cmd in commands),total=len(commands),desc="Running jobs")]
-    # if not args.collate:
-    #     dngs.run_cmd(f"cat {run_script} | parallel -j {args.jobs}", terminate_on_error=False)
+
     
     results = []
 
