@@ -39,6 +39,11 @@ def main(args):
     if args.read2:
         args.read2 = f"{args.prefix}.kraken_filtered.2.fq.gz"
 
+    
+    tmp_stats = (get_fastq_stats(args.read1,args.read2))
+    if tmp_stats['Number of reads']==0:
+        logging.critical("No reads left after filtering, exiting")
+        quit()
     if args.platform=="nanopore":
         args.assemble = False
         args.serotype_ref = True
