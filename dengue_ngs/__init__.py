@@ -145,7 +145,17 @@ def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,t
     to_mask = []
     for line in open(f"{tmp}.het.pos"):
         to_mask.append(('chromosome',int(line.strip())))
-    mask_fasta(f"{tmp}.consensus.fasta",output,to_mask,newchrom=prefix)
+    het_masked_consensus = f"{tmp}.consensus.het_masked.fasta"
+    mask_fasta(f"{tmp}.consensus.fasta",het_masked_consensus,to_mask,newchrom=prefix)
+
+    fasta_depth_mask(
+        input=het_masked_consensus,
+        output=output,
+        bam_file=bam,
+        depth_cutoff=min_depth,
+        newchrom=prefix
+    )
+
     # run_cmd(f"mv {tmp}.consensus.fasta {output}")
     for f in glob(f"{tmp}.*"):
         os.remove(f)
@@ -341,6 +351,7 @@ def fasta_depth_mask(input,output,bam_file,depth_cutoff=50,newchrom=None):
     """
     Mask the fasta file with - based on the depth of the bam file.
     """
+    logging.debug("Masking %s" % input)
     positions = get_missing_positions(bam_file,depth_cutoff=depth_cutoff)
     mask_fasta(input,output,positions,newchrom=newchrom)
 
