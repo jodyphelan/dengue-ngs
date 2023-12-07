@@ -15,7 +15,7 @@ from plotly.subplots import make_subplots
 import re
 import logging
 
-__version__ = "0.0.10"
+__version__ = "0.0.11"
 
 def get_strand_direction(consensus,ref):
     """
@@ -126,6 +126,7 @@ def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_
         os.remove(f)
     
 def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,threads=1,min_depth=50):
+    logging.debug("Correcting consensus using freebayes %s" % ref)
     tmp = str(uuid4())
     run_cmd(f"cp {ref} {tmp}.ref.fasta")
     if bam is None:
