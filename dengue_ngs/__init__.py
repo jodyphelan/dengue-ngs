@@ -298,14 +298,14 @@ def sort_out_paried_files(files,r1_suffix="_S[0-9]+_L001_R1_001.fastq.gz",r2_suf
             Sample(p,vals['r1'][0],vals['r2'][0]))
     return runs
 
-def find_fastq_files(directory):
+def find_fastq_files(directory,r1,r2):
     """
     Find fastq files in a directory and return a 
     list of tuples with the sample name and the 
     path to the fastq files from both pairs.
     """
     files = [f"{os.path.abspath(directory)}/{f}" for f in os.listdir(directory)]
-    fastq_files = sort_out_paried_files(files)
+    fastq_files = sort_out_paried_files(files,r1,r2)
     
     return fastq_files
 
