@@ -22,17 +22,23 @@ def main(args):
     report.set("Analysis completed","no")
 
     report.set_dict(get_fastq_stats(args.read1,args.read2))
+    
     if args.read2:
-        run_cmd("kraken2 --db %(kraken_db)s --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads %(threads)s %(read1)s %(read2)s" % vars(args))
-        run_cmd("extract_kraken_reads.py --include-children --fastq-output -t 12637  -k %(prefix)s.koutput.txt -r %(prefix)s.kreport.txt -s %(read1)s -s2 %(read2)s -o %(prefix)s.kraken_filtered.1.fq -o2 %(prefix)s.kraken_filtered.2.fq > /dev/null" % vars(args))
-        run_cmd("pigz --force -p %(threads)s %(prefix)s.kraken_filtered.1.fq %(prefix)s.kraken_filtered.2.fq" % vars(args))
+        run_cmd("kraken2 --db %(kraken_db)s --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --paired --threads %(threads)s %(read1)s %(read2)s" % vars(args))
     else:
         run_cmd("kraken2 --db %(kraken_db)s --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --threads %(threads)s %(read1)s" % vars(args))
-        run_cmd("extract_kraken_reads.py --include-children --fastq-output -t 12637  -k %(prefix)s.koutput.txt -r %(prefix)s.kreport.txt -s %(read1)s -o %(prefix)s.kraken_filtered.1.fq > /dev/null" % vars(args))
-        run_cmd("pigz --force -p %(threads)s %(prefix)s.kraken_filtered.1.fq" % vars(args))
-
+    
     report.set_dict(kreport_extract_human(f"{args.prefix}.kreport.txt"))
     report.set_dict(kreport_extract_dengue(f"{args.prefix}.kreport.txt"))
+
+    major_serotype = sorted([(x,report.get('Read percent dengue %s' % x)) for x in range(1,5)],key=lambda x:x[1],reverse=True)[0][0]
+    
+    
+    kraken_output = f"{args.prefix}.koutput.txt"
+    filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read1, output=f"{args.prefix}.kraken_filtered.1.fq.gz")
+    if args.read2:
+        filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read2, output=f"{args.prefix}.kraken_filtered.2.fq.gz")
+
 
 
     args.read1 = f"{args.prefix}.kraken_filtered.1.fq.gz"
@@ -63,7 +69,7 @@ def main(args):
     else:
         consensus_by_assembly = False
 
-    major_serotype = sorted([(x,report.get('Read percent dengue %s' % x)) for x in range(1,5)],key=lambda x:x[1],reverse=True)[0][0]
+    
     report.set("Serotype",major_serotype)
     if not consensus_by_assembly:
         if args.serotype_ref:
@@ -163,8 +169,8 @@ def main(args):
         prefix=args.prefix,
         output=f"{args.prefix}.final.consensus.fasta",
         threads=args.threads,
-        min_depth=args.min_dp
-
+        min_depth=args.min_dp,
+        min_freq=args.consensus_variant_frequency
     )
 
     report.set("Median depth",bam.get_median_coverage(f"{args.prefix}.fasta"))
@@ -184,6 +190,7 @@ parser.add_argument('--reference-assignment-method',type=str,choices=['kmcp','so
 parser.add_argument('--kraken-db',type=str,help='Kraken2 database directory')
 parser.add_argument('--serotype-ref',action="store_true",help='Use serotype reference instead of building one')
 parser.add_argument('--fix-ref',help='Force a reference instead of building one')
+parser.add_argument('--consensus-variant-frequency',default=0.01,type=float,help='Minimum frequency of variant to be considered in final reference')
 parser.add_argument('--assemble',action="store_true",help='Try assembly')
 parser.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser.set_defaults(func=main)

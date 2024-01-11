@@ -82,6 +82,7 @@ parser.add_argument('--fix-ref',help='Force a reference instead of building one'
 parser.add_argument('--logging',default="INFO",choices=["DEBUG","INFO","WARNING","ERROR","CRITICAL"],help='Logging level')
 parser.add_argument('--read1_suffix',type=str,help='File with samples',default='_S[0-9]+_L001_R1_001.fastq.gz')
 parser.add_argument('--read2_suffix',type=str,help='File with samples',default='_S[0-9]+_L001_R2_001.fastq.gz')
+parser.add_argument('--consensus-variant-frequency',default=0.01,type=float,help='Minimum frequency of variant to be considered in final reference')
 parser.set_defaults(func=main)
 
 args = parser.parse_args()

@@ -10,12 +10,16 @@ import statistics as stats
 from collections import defaultdict
 from glob import glob
 import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import re
 import logging
+from typing import List
+import pysam
+from os.path import expanduser
 
-__version__ = "0.0.11"
+__version__ = "0.0.12"
+
+sero2tax = {1:11053, 2:11060,3:11069,4:11070}
+
 
 def get_strand_direction(consensus,ref):
     """
@@ -106,7 +110,7 @@ def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_
     
     run_cmd(f"bcftools view -v snps -i 'FILTER=\"PASS\" & QUAL>0'  -c 2 {tmp}.consensus.vcf -Oz -o {tmp}.variants.vcf.gz")
     run_cmd(f"tabix {tmp}.variants.vcf.gz")
-    run_cmd(f"bcftools consensus -f {tmp}.ref.fasta {tmp}.variants.vcf.gz > {tmp}.consensus.fasta")
+    run_cmd(f"bcftools consensus -I -f {tmp}.ref.fasta {tmp}.variants.vcf.gz > {tmp}.consensus.fasta")
     
     # run_cmd(f"bcftools query -f '%POS\\t%FILTER\\n' {tmp}.consensus.vcf > {tmp}.consensus.info")
     # mask_positions = []
@@ -125,7 +129,7 @@ def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_
     for f in glob(f"{tmp}.*"):
         os.remove(f)
     
-def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,threads=1,min_depth=50):
+def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,threads=1,min_depth=50, min_freq=0.01, min_ad = 50):
     logging.debug("Correcting consensus using freebayes %s" % ref)
     tmp = str(uuid4())
     run_cmd(f"cp {ref} {tmp}.ref.fasta")
@@ -137,20 +141,20 @@ def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,t
             run_cmd(f"minimap2 -t {threads} -ax map-ont {ref} {r1} | samtools sort -@ {threads} -o {tmp}.bam")
         bam = f"{tmp}.bam"
     run_cmd(f"samtools index {bam}")
-    run_cmd(f"freebayes -f {tmp}.ref.fasta {bam} -F 0.5 | bcftools norm -a | bcftools view -v snps -Oz -o {tmp}.variants.vcf.gz")
+    run_cmd(f"freebayes -f {tmp}.ref.fasta {bam} -F {min_freq} -C {min_ad} | bcftools norm -a | bcftools view -v snps -Oz -o {tmp}.variants.vcf.gz")
     
     run_cmd(f"tabix {tmp}.variants.vcf.gz")
-    run_cmd(f"bcftools consensus -f {tmp}.ref.fasta {tmp}.variants.vcf.gz > {tmp}.consensus.fasta")
+    run_cmd(f"bcftools consensus -I -f {tmp}.ref.fasta {tmp}.variants.vcf.gz > {tmp}.consensus.fasta")
     
-    run_cmd(f"bcftools view -i 'GT=\"het\"' {tmp}.variants.vcf.gz | bcftools query -f '%POS\\n' > {tmp}.het.pos")
-    to_mask = []
-    for line in open(f"{tmp}.het.pos"):
-        to_mask.append(('chromosome',int(line.strip())))
-    het_masked_consensus = f"{tmp}.consensus.het_masked.fasta"
-    mask_fasta(f"{tmp}.consensus.fasta",het_masked_consensus,to_mask,newchrom=prefix)
+    # run_cmd(f"bcftools view -i 'GT=\"het\"' {tmp}.variants.vcf.gz | bcftools query -f '%POS\\n' > {tmp}.het.pos")
+    # to_mask = []
+    # for line in open(f"{tmp}.het.pos"):
+        # to_mask.append(('chromosome',int(line.strip())))
+    # het_masked_consensus = f"{tmp}.consensus.het_masked.fasta"
+    # mask_fasta(f"{tmp}.consensus.fasta",het_masked_consensus,to_mask,newchrom=prefix)
 
     fasta_depth_mask(
-        input=het_masked_consensus,
+        input=f"{tmp}.consensus.fasta",
         output=output,
         bam_file=bam,
         depth_cutoff=min_depth,
@@ -400,3 +404,87 @@ def filter_seqs_by_size(fasta_file,output, seqname, min_seq_size_cutoff, max_seq
         return True
     else:
         return False
+
+
+
+class TaxonTree:
+    """
+    A data structure to store a taxonomic tree.
+    
+    Attributes
+    ----------
+    tree : dict
+        A dictionary representing the tree. Keys are parent nodes and values are lists of child nodes.
+    """
+    def __init__(self,node_file='/Users/jody/.taxonkit/nodes.dmp'):
+        """
+        Parameters
+        ----------
+        node_file : str
+            Path to the NCBI nodes.dmp file
+        """
+        self.tree = {}
+        for l in open(node_file):
+            row = [f.strip() for f in l.strip().split('|')]
+            if row[0]==row[1]:
+                continue
+            child = int(row[0])
+            parent = int(row[1])
+            if parent not in self.tree:
+                self.tree[parent] = []
+            self.tree[parent].append(child)
+    def find_descendants(self,node):
+        """
+        Recursively find all descendants of a given node.
+        
+        Parameters
+        ----------
+        node : int
+            The node to find descendants of.
+        
+        Returns
+        -------
+        descendants : set
+            A set of all descendants of the given node.
+        """
+        descendants = []
+        children = self.tree.get(node, [])
+        for child in children:
+            descendants.append(child)
+            # Recursively find descendants of the child
+            descendants.extend(self.find_descendants(child))
+        return set(descendants)
+    
+def filter_fastq_by_taxon(kraken_output: str,serotype: int,reads: str,output: str):
+    """
+    Filter a fastq file by taxon.
+    """
+    nodedump = expanduser("~")+"/.dengue-ngs/taxdump/nodes.dmp"
+    tree = TaxonTree(nodedump)
+
+    include = [12637]
+    exclude = set(sero2tax.values())
+    exclude.remove(sero2tax[serotype])
+    print(exclude)
+
+    taxon_to_keep = set()
+    for node in include:
+        taxon_to_keep.add(int(node))
+        taxon_to_keep.update(tree.find_descendants(int(node)))
+
+    if exclude:
+        for node in exclude:
+            if int(node) in taxon_to_keep:
+                taxon_to_keep.remove(int(node))
+                taxon_to_keep.difference_update(tree.find_descendants(int(node)))
+
+    read_names = set()
+    for l in open(kraken_output):
+        row = l.strip().split('\t')
+        if int(row[2]) in taxon_to_keep:
+            read_names.add(row[1])
+
+    with pysam.FastxFile(reads) as fin, open(output, mode='w') as fout:
+        for entry in fin:
+            if entry.name in read_names:
+                fout.write(str(entry) + '\n')
