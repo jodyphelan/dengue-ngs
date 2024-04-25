@@ -10,6 +10,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--threads",default=mp.cpu_count()//4,type=int)
 parser.add_argument("--no-kraken",action="store_true")
+parser.add_argument("--add-human",action="store_true")
+parser.add_argument("--kmcp",action="store_true")
 
 args = parser.parse_args()
 
@@ -72,6 +74,7 @@ if not os.path.exists(kraken_ref_dir):
 
 exclude_list = get_exclude_list()
 
+sys.stderr.write("Downloading reference files\n")
 run_cmd("datasets download virus genome taxon 12637 --complete-only")
 run_cmd("unzip -o ncbi_dataset.zip")
 
@@ -112,10 +115,11 @@ sys.stderr.write("Creating sourmash signature\n")
 run_cmd("sourmash sketch dna -p scaled=10 ~/.dengue-ngs/ref/*.fasta --name-from-first -o dengue.sig")
 # run_cmd("sourmash index dengue.sig ref/*.sig")
 
-sys.stderr.write("Creating kmcp database\n")
-run_cmd(f"kmcp compute -j {args.threads} --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
-run_cmd(f"kmcp index -j {args.threads} -f 0.01 -I refs.tmp/ -O refs.kmcp --force")
-run_cmd("cp taxid.map refs.kmcp/")
+if args.kmcp:
+    sys.stderr.write("Creating kmcp database\n")
+    run_cmd(f"kmcp compute -j {args.threads} --circular -k 31 -n 10 -l 150 -I ref -O refs.tmp --force")
+    run_cmd(f"kmcp index -j {args.threads} -f 0.01 -I refs.tmp/ -O refs.kmcp --force")
+    run_cmd("cp taxid.map refs.kmcp/")
 
 run_cmd("wget https://ftp.ncbi.nih.gov/pub/taxonomy/taxdump.tar.gz")
 run_cmd("mkdir -p taxdump")
@@ -124,7 +128,8 @@ run_cmd("tar -zxvf taxdump.tar.gz -C taxdump/")
 if not args.no_kraken:
     sys.stderr.write("Creating kraken2 database\n")
     run_cmd(f"kraken2-build --threads {args.threads}  --download-taxonomy --skip-maps --db kraken2 --use-ftp")
-    run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
+    if args.add_human:
+        run_cmd(f"kraken2-build --threads {args.threads} --download-library human --db kraken2 --use-ftp")
     run_cmd("ls %s/ | parallel -j %s --bar kraken2-build --add-to-library %s/{} --db kraken2" % (kraken_ref_dir,args.threads,kraken_ref_dir))
     run_cmd(f"kraken2-build --build --db kraken2 --threads {args.threads}")
     run_cmd("kraken2-build --clean --db kraken2")
