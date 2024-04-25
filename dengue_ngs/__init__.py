@@ -16,7 +16,7 @@ from typing import List
 import pysam
 from os.path import expanduser
 
-__version__ = "0.0.12"
+__version__ = "0.0.13"
 
 sero2tax = {1:11053, 2:11060,3:11069,4:11070}
 
