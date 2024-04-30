@@ -13,6 +13,10 @@ from rich.logging import RichHandler
 def main(args):
     tmp = str(uuid4())
     args.data_dir = os.path.expanduser('~')+"/.dengue-ngs/"
+
+    if not os.path.exists(args.data_dir):
+        logging.critical("Reference database files not found. Please run dengue-download-ref.py first.")
+
     args.refdir = "%(data_dir)s/ref/" % vars(args)
     if not args.kraken_db:
         args.kraken_db = f"{args.data_dir}/kraken2" 
