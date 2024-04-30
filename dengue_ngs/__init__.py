@@ -320,7 +320,7 @@ def get_fasta_missing_content(fasta_file):
     Get the missing content of a fasta file.
     """
     sys.stderr.write("Getting missing content of %s\n" % fasta_file)
-    fasta = pp.fasta(fasta_file)
+    fasta = pp.Fasta(fasta_file)
     seq = list(fasta.fa_dict.values())[0]
     missing = round(seq.count("-")/len(seq)*100)
     return missing
@@ -330,7 +330,7 @@ def mask_fasta(input,output,positions,newchrom=None):
     Mask the fasta file with Ns.
     """
     sys.stderr.write("Masking %s\n" % input)
-    fasta = pp.fasta(input)
+    fasta = pp.Fasta(input)
     seq = list(list(fasta.fa_dict.values())[0])
 
     if not newchrom:
@@ -367,7 +367,7 @@ def return_seqs_by_size(fasta_file,min_seq_size_cutoff,max_seq_size_cutoff):
     Return a list of sequences from a fasta file that are 
     above a certain size cutoff.
     """
-    fasta = pp.fasta(fasta_file)
+    fasta = pp.Fasta(fasta_file)
     seqs = {}
     for name,seq in fasta.fa_dict.items():
         if len(seq) > min_seq_size_cutoff and len(seq) < max_seq_size_cutoff:

@@ -156,7 +156,7 @@ def main(args):
         run_cmd("minimap2 -ax map-ont -t %(threads)s %(prefix)s.temp.consensus.fasta %(read1)s | samtools sort -@ %(threads)s -o %(prefix)s.consensus.bam" % vars(args))
     run_cmd("samtools index %(prefix)s.consensus.bam" % vars(args))
     
-    bam = pp.bam(
+    bam = pp.Bam(
         bam_file=args.prefix+".consensus.bam",
         prefix=args.prefix,
         platform=args.platform.title(),
@@ -173,7 +173,7 @@ def main(args):
         min_freq=args.consensus_variant_frequency
     )
 
-    report.set("Median depth",bam.get_median_coverage(f"{args.prefix}.fasta"))
+    report.set("Median depth",bam.get_median_depth(f"{args.prefix}.final.consensus.fasta"))
     report.set("Reference_coverage", 100 - get_fasta_missing_content(f"{args.prefix}.final.consensus.fasta"))   
 
     report.set("Analysis completed","yes")
