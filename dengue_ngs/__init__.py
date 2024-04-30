@@ -15,6 +15,7 @@ import logging
 from typing import List
 import pysam
 from os.path import expanduser
+from tqdm import tqdm
 
 __version__ = "0.0.13"
 
@@ -465,7 +466,6 @@ def filter_fastq_by_taxon(kraken_output: str,serotype: int,reads: str,output: st
     include = [12637]
     exclude = set(sero2tax.values())
     exclude.remove(sero2tax[serotype])
-    print(exclude)
 
     taxon_to_keep = set()
     for node in include:

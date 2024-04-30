@@ -35,17 +35,17 @@ def main(args):
     
     
     kraken_output = f"{args.prefix}.koutput.txt"
-    filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read1, output=f"{args.prefix}.kraken_filtered.1.fq.gz")
+    filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read1, output=f"{args.prefix}.kraken_filtered.1.fq")
     if args.read2:
-        filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read2, output=f"{args.prefix}.kraken_filtered.2.fq.gz")
+        filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read2, output=f"{args.prefix}.kraken_filtered.2.fq")
 
 
 
-    args.read1 = f"{args.prefix}.kraken_filtered.1.fq.gz"
+    args.read1 = f"{args.prefix}.kraken_filtered.1.fq"
     if args.read2:
-        args.read2 = f"{args.prefix}.kraken_filtered.2.fq.gz"
+        args.read2 = f"{args.prefix}.kraken_filtered.2.fq"
 
-    
+    print("adjaiodjsa")
     tmp_stats = (get_fastq_stats(args.read1,args.read2))
     if tmp_stats['Number of reads']==0:
         logging.critical("No reads left after filtering, exiting")
