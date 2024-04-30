@@ -51,7 +51,7 @@ https://conda.anaconda.org/bioconda/linux-64/mafft-7.520-h031d066_2.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/ncurses-6.4-hcb278e6_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/nspr-4.35-h27087fc_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/oniguruma-6.9.8-h166bdaf_0.tar.bz2
-https://conda.anaconda.org/conda-forge/linux-64/openssl-3.2.1-hd590300_1.conda
+https://conda.anaconda.org/conda-forge/linux-64/openssl-3.3.0-hd590300_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/pcre-8.45-h9c3ff4c_0.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/pixman-0.40.0-h36c2ea0_0.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/pthread-stubs-0.4-h36c2ea0_1001.tar.bz2
@@ -132,6 +132,7 @@ https://conda.anaconda.org/conda-forge/linux-64/kiwisolver-1.4.4-py310hbf28c38_1
 https://conda.anaconda.org/conda-forge/linux-64/lcms2-2.15-haa2dc70_1.conda
 https://conda.anaconda.org/conda-forge/linux-64/libcups-2.3.3-h36d4200_3.conda
 https://conda.anaconda.org/conda-forge/linux-64/libcurl-8.1.2-h409715c_0.conda
+https://conda.anaconda.org/conda-forge/noarch/mdurl-0.1.2-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/bioconda/linux-64/megahit-1.2.9-h43eeafb_4.tar.bz2
 https://conda.anaconda.org/bioconda/linux-64/minimap2-2.26-he4a0461_1.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/munkres-1.1.4-pyh9f0ad1d_0.tar.bz2
@@ -143,6 +144,7 @@ https://conda.anaconda.org/conda-forge/linux-64/perl-encode-3.19-pl5321h166bdaf_
 https://conda.anaconda.org/bioconda/noarch/perl-list-moreutils-0.430-pl5321hdfd78af_0.tar.bz2
 https://conda.anaconda.org/bioconda/noarch/perl-types-serialiser-1.01-pl5321hdfd78af_0.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/pycparser-2.21-pyhd8ed1ab_0.tar.bz2
+https://conda.anaconda.org/conda-forge/noarch/pygments-2.17.2-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.0.9-pyhd8ed1ab_0.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/pysocks-1.7.1-pyha2e5f31_6.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/python-tzdata-2023.3-pyhd8ed1ab_0.conda
@@ -168,6 +170,7 @@ https://conda.anaconda.org/conda-forge/linux-64/fonttools-4.39.4-py310h2372a71_0
 https://conda.anaconda.org/bioconda/linux-64/htslib-1.17-h81da01d_2.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/joblib-1.4.0-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/conda-forge/linux-64/kaleido-core-0.2.1-h3644ca4_0.tar.bz2
+https://conda.anaconda.org/t/no-15126f85-4dce-4462-b48d-9bc580ca6641/conda-forge/noarch/markdown-it-py-3.0.0-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/bioconda/linux-64/perl-io-compress-2.201-pl5321hdbdd923_2.tar.bz2
 https://conda.anaconda.org/bioconda/linux-64/perl-json-xs-2.34-pl5321h4ac6f70_6.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/perl-pathtools-3.75-pl5321h166bdaf_0.tar.bz2
@@ -193,6 +196,7 @@ https://conda.anaconda.org/conda-forge/noarch/platformdirs-3.5.1-pyhd8ed1ab_0.co
 https://conda.anaconda.org/conda-forge/linux-64/pydantic-core-2.18.2-py310he421c4c_0.conda
 https://conda.anaconda.org/conda-forge/noarch/python-kaleido-0.2.1-pyhd8ed1ab_0.tar.bz2
 https://conda.anaconda.org/conda-forge/noarch/requests-2.31.0-pyhd8ed1ab_0.conda
+https://conda.anaconda.org/conda-forge/noarch/rich-13.7.1-pyhd8ed1ab_0.conda
 https://conda.anaconda.org/bioconda/linux-64/samtools-1.17-hd87286a_1.tar.bz2
 https://conda.anaconda.org/conda-forge/linux-64/xorg-libxtst-1.2.3-h7f98852_1002.tar.bz2
 https://conda.anaconda.org/bioconda/linux-64/blast-2.14.0-h7d5a4b4_1.tar.bz2
