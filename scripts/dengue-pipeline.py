@@ -27,7 +27,12 @@ def main(args):
     report.set("Analysis completed","no")
 
     report.set_dict(get_fastq_stats(args.read1,args.read2))
-    
+
+    if args.platform=='illumina':
+        run_cmd("fastp -i %(read1)s -I %(read2)s -o %(prefix)s.trimmed.1.fq -O %(prefix)s.trimmed.2.fq --json %(prefix)s.fastp.json --html %(prefix)s.fastp.html" % vars(args))
+        args.read1 = f"{args.prefix}.trimmed.1.fq"
+        args.read2 = f"{args.prefix}.trimmed.2.fq"
+        
     if args.read2:
         run_cmd("kraken2 --db %(kraken_db)s --report %(prefix)s.kreport.txt --output %(prefix)s.koutput.txt --paired --threads %(threads)s %(read1)s %(read2)s" % vars(args))
     else:
@@ -36,13 +41,15 @@ def main(args):
     report.set_dict(kreport_extract_human(f"{args.prefix}.kreport.txt"))
     report.set_dict(kreport_extract_dengue(f"{args.prefix}.kreport.txt"))
 
-    major_serotype = sorted([(x,report.get('Read percent dengue %s' % x)) for x in range(1,5)],key=lambda x:x[1],reverse=True)[0][0]
+    report.load_kreport(f"{args.prefix}.kreport.txt")
+
+    major_virus = report.get_major_virus()
     
     
     kraken_output = f"{args.prefix}.koutput.txt"
-    filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read1, output=f"{args.prefix}.kraken_filtered.1.fq")
+    filter_fastq_by_taxon(kraken_output=kraken_output, virus = major_virus, reads=args.read1, output=f"{args.prefix}.kraken_filtered.1.fq")
     if args.read2:
-        filter_fastq_by_taxon(kraken_output=kraken_output, serotype = major_serotype, reads=args.read2, output=f"{args.prefix}.kraken_filtered.2.fq")
+        filter_fastq_by_taxon(kraken_output=kraken_output, virus = major_virus, reads=args.read2, output=f"{args.prefix}.kraken_filtered.2.fq")
 
 
 
@@ -50,7 +57,7 @@ def main(args):
     if args.read2:
         args.read2 = f"{args.prefix}.kraken_filtered.2.fq"
 
-    print("adjaiodjsa")
+
     tmp_stats = (get_fastq_stats(args.read1,args.read2))
     if tmp_stats['Number of reads']==0:
         logging.critical("No reads left after filtering, exiting")
@@ -75,11 +82,11 @@ def main(args):
         consensus_by_assembly = False
 
     
-    report.set("Serotype",major_serotype)
+    report.set("Virus",major_virus)
     if not consensus_by_assembly:
         if args.serotype_ref:
-            serotype_references =  yaml.safe_load(open("%s/share/dengue-ngs/variables.yaml" % sys.base_prefix))['references']
-            args.ref = serotype_references[major_serotype]+".fasta"
+            virus_references =  yaml.safe_load(open("%s/share/dengue-ngs/variables.yaml" % sys.base_prefix))['references']
+            args.ref = virus_references[major_virus]+".fasta"
             args.ref = f"{args.refdir}/{args.ref}"
             report.set("Consensus type","Serotype reference mapping")
         elif args.fix_ref:
@@ -88,7 +95,7 @@ def main(args):
         else:
 
             if args.reference_assignment_method=="sourmash":
-                args.db = "%(data_dir)s/dengue.sig" % vars(args)
+                args.db = "%(data_dir)s/sourmash.sig" % vars(args)
                 run_cmd("sourmash sketch dna -p abund,scaled=10 %(read1)s  %(read2)s --merge  %(prefix)s  -o %(prefix)s.sig" % vars(args))
                 run_cmd("sourmash gather --threshold-bp 1000 %(prefix)s.sig %(db)s -o %(prefix)s.gather.csv" % vars(args))
                 if not os.path.isfile(f"{args.prefix}.gather.csv"):
@@ -120,20 +127,21 @@ def main(args):
             r1=args.read1,
             r2=args.read2,
             platform=args.platform,
-            consensus_name=args.prefix+".temp.fasta",
+            sample_name=args.prefix,
+            consensus_name=args.prefix+".temp.consensus.fasta",
             bam_file=f"{args.prefix}.ref.bam",
             threads=args.threads,
             min_depth=args.min_dp
         )
         
-        fasta_depth_mask(
-            input=f"{args.prefix}.temp.fasta",
-            output=f"{args.prefix}.temp.consensus.fasta",
-            bam_file=f"{args.prefix}.ref.bam",
-            depth_cutoff=args.min_dp,
-            newchrom=args.prefix
-        )
-        os.remove(f"{args.prefix}.temp.fasta")
+        # fasta_depth_mask(
+        #     input=f"{args.prefix}.temp.fasta",
+        #     output=f"{args.prefix}.temp.consensus.fasta",
+        #     bam_file=f"{args.prefix}.ref.bam",
+        #     depth_cutoff=args.min_dp,
+        #     newchrom=args.prefix
+        # )
+        # os.remove(f"{args.prefix}.temp.fasta")
 
         ## end of consensus by reference
     else:
@@ -167,16 +175,24 @@ def main(args):
         platform=args.platform.title(),
     )
 
-    freebayes_correct(
-        ref=f"{args.prefix}.temp.consensus.fasta",
-        bam=args.prefix+".consensus.bam",
-        platform=args.platform,
-        prefix=args.prefix,
-        output=f"{args.prefix}.final.consensus.fasta",
-        threads=args.threads,
-        min_depth=args.min_dp,
-        min_freq=args.consensus_variant_frequency
-    )
+    if args.platform=="illumina":
+        freebayes_correct(
+            ref=f"{args.prefix}.temp.consensus.fasta",
+            bam=args.prefix+".consensus.bam",
+            platform=args.platform,
+            prefix=args.prefix,
+            output=f"{args.prefix}.final.consensus.fasta",
+            threads=args.threads,
+            min_depth=args.min_dp,
+            min_freq=args.consensus_variant_frequency
+        )
+    else:
+        medaka_correct(
+            ref=f"{args.prefix}.temp.consensus.fasta",
+            reads=args.read1,
+            output=f"{args.prefix}.final.consensus.fasta",
+            prefix=args.prefix,
+        )
 
     report.set("Median depth",bam.get_median_depth(f"{args.prefix}.final.consensus.fasta"))
     report.set("Reference_coverage", 100 - get_fasta_missing_content(f"{args.prefix}.final.consensus.fasta"))   

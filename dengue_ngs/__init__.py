@@ -12,15 +12,21 @@ from glob import glob
 import pandas as pd
 import re
 import logging
-from typing import List
 import pysam
 from os.path import expanduser
-from tqdm import tqdm
+import yaml
 
 __version__ = "0.0.13"
 
+conf = yaml.safe_load(open("%s/share/dengue-ngs/variables.yaml" % sys.base_prefix))
+taxid2name = conf['taxid2name']
 sero2tax = {1:11053, 2:11060,3:11069,4:11070}
 
+def get_conf():
+    """
+    Get the configuration dictionary.
+    """
+    return conf
 
 def get_strand_direction(consensus,ref):
     """
@@ -95,7 +101,7 @@ def remove_bwa_index(ref):
     for e in ["amb","ann","bwt","pac","sa"]:
         os.remove(f"{ref}.{e}")
 
-def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_depth=50):
+def pilon_correct(ref,r1,r2,consensus_name,platform,sample_name,bam_file=None,threads=1,min_depth=50):
     tmp = str(uuid4())
     run_cmd(f"cp {ref} {tmp}.ref.fasta")
     if platform.lower()=="illumina":
@@ -121,7 +127,7 @@ def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_
     #         mask_positions.append(('chromosome',int(pos)))
 
     # mask_fasta(f"{tmp}.consensus.fasta",consensus_name,mask_positions,newchrom=consensus_name)
-    run_cmd(f"sed 's/_pilon//' {tmp}.consensus.fasta > {consensus_name}")
+    run_cmd(f"sed -r 's/>.+/>{sample_name}/' {tmp}.consensus.fasta > {consensus_name}")
 
     run_cmd(f"mv {tmp}.consensus.vcf {consensus_name}.vcf")
     if bam_file:
@@ -129,6 +135,24 @@ def pilon_correct(ref,r1,r2,consensus_name,platform,bam_file=None,threads=1,min_
         run_cmd(f"mv {tmp}.bam.bai {bam_file}.bai")
     for f in glob(f"{tmp}.*"):
         os.remove(f)
+
+def medaka_correct(ref,reads,output, prefix=None,min_depth=50):
+    logging.debug("Correcting consensus using medaka %s" % ref)
+    tmpdir = str(uuid4())
+    run_cmd(f"medaka_consensus -i {reads} -d {ref} -o {tmpdir}")
+    run_cmd(f"minimap2 -ax map-ont {tmpdir}/consensus.fasta {reads} | samtools sort -o {tmpdir}/reads_to_consensus.bam")
+    run_cmd(f"samtools index {tmpdir}/reads_to_consensus.bam")
+    
+    fasta_depth_mask(
+        input=f"{tmpdir}/consensus.fasta",
+        output=output,
+        bam_file=f"{tmpdir}/reads_to_consensus.bam",
+        depth_cutoff=min_depth,
+        newchrom=prefix
+    )
+
+    # run_cmd(f"mv {tmp}.medaka/round_1.fasta {output}")
+    run_cmd(f"rm -rf {tmpdir}")
     
 def freebayes_correct(ref,output,platform,bam=None,r1=None,r2=None,prefix=None,threads=1,min_depth=50, min_freq=0.01, min_ad = 50):
     logging.debug("Correcting consensus using freebayes %s" % ref)
@@ -172,6 +196,9 @@ class Report:
     def __init__(self,report_file):
         self.report = {}
         self.report_file = report_file
+        self.tax2reads = {}
+        for tax in taxid2name:
+            self.tax2reads[tax] = 0
     def get(self,key):
         return self.report[key]
     def set(self,key,value):
@@ -184,7 +211,24 @@ class Report:
     def dump(self):
         with open(self.report_file,"w") as O:
             json.dump(self.report,O,indent=4)
+    def load_kreport(self, kreport_file):
+        """
+        Load a kraken report file into the report dictionary.
+        """
+        for line in open(kreport_file):
+            taxid = int(line.strip().split("\t")[4])
+            if taxid in self.tax2reads:
+                self.tax2reads[taxid] = float(line.strip().split("\t")[0])
+    def get_major_virus(self):
+        """
+        Get the major virus from the report.
+        """
+        major_virus = max(self.tax2reads.items(), key=lambda x: x[1])
 
+        if major_virus[1] > 0:
+            return major_virus[0]
+        else:
+            logging.warning("No major virus found in the report.")
 
 def get_fastq_stats(read1,read2=None):
     tmpfile = "%s.txt" % uuid4()
@@ -224,6 +268,9 @@ def kreport_extract_dengue(kreport_file):
     d2_reads = 0
     d3_reads = 0
     d4_reads = 0
+    chik_reads = 0
+    zika_reads = 0
+
     for line in open(kreport_file):
         if line.strip().split("\t")[4] == "12637":
             dengue_reads = float(line.strip().split("\t")[0])
@@ -235,12 +282,19 @@ def kreport_extract_dengue(kreport_file):
             d3_reads = float(line.strip().split("\t")[0])
         if line.strip().split("\t")[4] == "11070":
             d4_reads = float(line.strip().split("\t")[0])
+        if line.strip().split("\t")[4] == "37124":
+            chik_reads = float(line.strip().split("\t")[0])
+        if line.strip().split("\t")[4] == "64320":
+            zika_reads = float(line.strip().split("\t")[0])
+        
     return {
         "Read percent dengue":dengue_reads, 
         "Read percent dengue 1":d1_reads, 
         "Read percent dengue 2":d2_reads, 
         "Read percent dengue 3":d3_reads, 
-        "Read percent dengue 4":d4_reads
+        "Read percent dengue 4":d4_reads,
+        "Read percent chikungunya":chik_reads,
+        "Read percent zika":zika_reads
     }
 
 def which(program):
@@ -303,6 +357,24 @@ def sort_out_paried_files(files,r1_suffix="_S[0-9]+_L001_R1_001.fastq.gz",r2_suf
             Sample(p,vals['r1'][0],vals['r2'][0]))
     return runs
 
+def sort_out_single_files(files, r1_suffix=".fastq.gz"):
+    prefixes = defaultdict(lambda:{"r1":[]})
+
+    for f in files:
+        tmp1 = re.search("(.+)%s" % r1_suffix,f)
+        p = None
+        if tmp1:
+            p = tmp1.group(1).split("/")[-1]
+            prefixes[p]['r1'].append(f)
+            
+    runs = []
+    for p,vals in prefixes.items():
+        if len(vals['r1'])!=1:
+            raise Exception("%s has number of R1 files != 1 %s. Please check." % (p,vals['r1']))
+        runs.append(
+            Sample(p,vals['r1'][0],None))
+    return runs
+
 def find_fastq_files(directory,r1,r2):
     """
     Find fastq files in a directory and return a 
@@ -310,8 +382,11 @@ def find_fastq_files(directory,r1,r2):
     path to the fastq files from both pairs.
     """
     files = [f"{os.path.abspath(directory)}/{f}" for f in os.listdir(directory)]
-    fastq_files = sort_out_paried_files(files,r1,r2)
-    
+    if r2:
+        fastq_files = sort_out_paried_files(files,r1,r2)
+    else:
+        fastq_files = sort_out_single_files(files,r1)
+
     return fastq_files
 
 
@@ -322,8 +397,13 @@ def get_fasta_missing_content(fasta_file):
     sys.stderr.write("Getting missing content of %s\n" % fasta_file)
     fasta = pp.Fasta(fasta_file)
     seq = list(fasta.fa_dict.values())[0]
-    missing = round(seq.count("-")/len(seq)*100)
-    return missing
+    missing_characters = set(["n","N","-"])
+    num_missing = 0
+    for c in seq:
+        if c in missing_characters:
+            num_missing += 1
+    missing_percent = round(num_missing / len(seq) * 100)
+    return missing_percent
 
 def mask_fasta(input,output,positions,newchrom=None):
     """
@@ -336,7 +416,10 @@ def mask_fasta(input,output,positions,newchrom=None):
     if not newchrom:
         newchrom = list(fasta.fa_dict)[0]
 
+    print(len(list(fasta.fa_dict.values())[0]))
+    print(positions)
     for chrom,pos in positions:
+        # print(pos)
         seq[pos-1] = "N"
     
     with open(output,"w") as O:
@@ -359,6 +442,7 @@ def fasta_depth_mask(input,output,bam_file,depth_cutoff=50,newchrom=None):
     """
     logging.debug("Masking %s" % input)
     positions = get_missing_positions(bam_file,depth_cutoff=depth_cutoff)
+    print(input)
     mask_fasta(input,output,positions,newchrom=newchrom)
 
 
@@ -456,17 +540,17 @@ class TaxonTree:
             descendants.extend(self.find_descendants(child))
         return set(descendants)
     
-def filter_fastq_by_taxon(kraken_output: str,serotype: int,reads: str,output: str):
+def filter_fastq_by_taxon(kraken_output: str,virus: int,reads: str,output: str):
     """
     Filter a fastq file by taxon.
     """
     nodedump = expanduser("~")+"/.dengue-ngs/taxdump/nodes.dmp"
     tree = TaxonTree(nodedump)
 
-    include = [12637]
-    exclude = set(sero2tax.values())
-    exclude.remove(sero2tax[serotype])
+    include = [2732406]
+    exclude = set(taxid2name.keys()) - set([virus])
 
+    logging.debug(f"Filtering reads for virus {virus} with include nodes {include} and exclude nodes {exclude}")
     taxon_to_keep = set()
     for node in include:
         taxon_to_keep.add(int(node))
@@ -483,6 +567,8 @@ def filter_fastq_by_taxon(kraken_output: str,serotype: int,reads: str,output: st
         row = l.strip().split('\t')
         if int(row[2]) in taxon_to_keep:
             read_names.add(row[1])
+
+    logging.debug(f"Found {len(read_names)} reads to keep for virus {virus} in {reads}")
 
     with pysam.FastxFile(reads) as fin, open(output, mode='w') as fout:
         for entry in fin:

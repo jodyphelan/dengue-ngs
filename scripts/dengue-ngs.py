@@ -19,6 +19,7 @@ from rich.logging import RichHandler
 threads_per_job = mp.cpu_count()//4
 
 def main(args):
+    conf = dngs.get_conf()
     if args.fix_ref and args.serotype_ref:
         sys.stderr.write("Cannot use both --fix-ref and --serotype-ref\n")
         sys.exit(1)
@@ -31,14 +32,16 @@ def main(args):
         sys.stderr.write("Reference files not found. Please run dengue-download-ref.py first.\n")
         sys.exit(1)
 
+    if args.platform.lower() == "nanopore":
+        args.read2_suffix = None
     runs = dngs.find_fastq_files(args.folder,args.read1_suffix,args.read2_suffix)
     run_script = "%s.sh" % uuid4()
     commands = []
     with open(run_script,"w") as O:
         for run in runs:
             tmp_args = f" --fix-ref {args.fix_ref} " if args.fix_ref else ""  + " --serotype-ref " if args.serotype_ref else ""
-
-            commands.append(f"dengue-pipeline.py {tmp_args} --kraken-db {args.kraken_db} --platform {args.platform} --threads {args.threads_per_job} --read1 {run.r1} --read2 {run.r2} --prefix {run.prefix} > {run.prefix}.log")
+            read_args = f" --read1 {run.r1} " + (f" --read2 {run.r2} " if run.r2 else "")
+            commands.append(f"dengue-pipeline.py {tmp_args} --kraken-db {args.kraken_db} --platform {args.platform} --threads {args.threads_per_job} {read_args} --prefix {run.prefix} > {run.prefix}.log")
     
     parallel = Parallel(n_jobs=args.jobs, return_as='generator')
     [r for r in tqdm(parallel(delayed(dngs.run_cmd)(cmd) for cmd in commands),total=len(commands),desc="Running jobs")]
@@ -49,14 +52,16 @@ def main(args):
     fieldnames = [
         "Sample ID","Number of reads","Average read length","Read percent human",
         "Read percent dengue","Read percent dengue 1","Read percent dengue 2",
-        "Read percent dengue 3", "Read percent dengue 4","Serotype","Consensus type",
-        "Median depth","Reference_coverage","Analysis completed"
+        "Read percent dengue 3", "Read percent dengue 4","Read percent chikungunya",
+        "Read percent zika","Virus","Consensus type","Median depth","Reference_coverage",
+        "Analysis completed"
     ]
 
     for run in runs:
         res = {}
         if os.path.isfile(f"{run.prefix}.json"):
             d = json.load(open(f"{run.prefix}.json"))
+            d['Virus'] = conf['taxid2name'][d['Virus']]
             for f in fieldnames:
                 res[f] = d.get(f,"NA")
         else:
